@@ -49,7 +49,14 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [sheet, closeSheet])
 
-  if (!state.profile) return <Onboarding />
+  if (!state.profile) {
+    return (
+      <>
+        <Onboarding />
+        <Toast />
+      </>
+    )
+  }
 
   return (
     <>

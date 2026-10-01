@@ -4,11 +4,13 @@ import { EMPTY_PROFILE, parseProfile, ProfileFields } from '../components/Profil
 import { sampleState } from '../data/demo'
 import { fmt, goalIntake, maintenance, planKcal, suggestedTargets } from '../lib/model'
 import { useApp } from '../state/AppContext'
+import { useBackup } from '../state/backup'
 import type { Goal } from '../types'
 
 /** First-run screen: collects what the burn estimate needs, and the goal. */
 export function Onboarding() {
   const { today, update } = useApp()
+  const { restoreBackup } = useBackup()
   const [draft, setDraft] = useState(EMPTY_PROFILE)
   const [goal, setGoal] = useState<Goal>({ type: 'cut', pace: 'gentle' })
   const [error, setError] = useState('')
@@ -86,6 +88,9 @@ export function Onboarding() {
         </button>
         <button className="tbtn" type="button" style={{ color: 'var(--burn-ink)' }} onClick={() => update(() => sampleState(today))}>
           Look around with sample data
+        </button>
+        <button className="tbtn" type="button" style={{ color: 'var(--burn-ink)', marginTop: -12 }} onClick={restoreBackup}>
+          Restore from a backup
         </button>
       </form>
     </main>

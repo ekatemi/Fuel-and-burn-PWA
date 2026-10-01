@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state/AppContext'
+import { useBackup } from '../state/backup'
 import { BackIcon, MoreIcon, WatchIcon } from './Icons'
 
 interface TopBarProps {
@@ -10,6 +11,7 @@ interface TopBarProps {
 
 export function TopBar({ title, subtitle, withBack }: TopBarProps) {
   const { state, update, openSheet, resetData, showToast } = useApp()
+  const { exportBackup, restoreBackup } = useBackup()
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -79,6 +81,12 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
             })}
           >
             {state.numbers ? 'Calm view (hide numbers)' : 'Show numbers'}
+          </button>
+          <button role="menuitem" onClick={pick(exportBackup)}>
+            Export backup
+          </button>
+          <button role="menuitem" onClick={pick(restoreBackup)}>
+            Restore from backup
           </button>
           <button
             role="menuitem"

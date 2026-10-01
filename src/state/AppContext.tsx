@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { freshState } from '../data/demo'
-import { todayKey, useToday } from '../lib/dates'
+import { useToday } from '../lib/dates'
 import { maintenance, nowTime, toMeal } from '../lib/model'
 import type { AppState, KnownItem, SheetName } from '../types'
+import { normalizeState } from './backup'
 
 const STORAGE_KEY = 'fuel-and-burn-v1'
 const TOAST_MS = 4500
@@ -40,18 +41,12 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null)
 
 function loadState(): AppState {
-  const today = todayKey()
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
-    if (saved && Array.isArray(saved.meals) && Array.isArray(saved.favs)) {
-      // Meals saved before the diary was dated belong to the day they are first loaded on.
-      const meals = saved.meals.map((m: AppState['meals'][number]) => (m.date ? m : { ...m, date: today }))
-      return { ...freshState(), ...saved, meals }
-    }
+    return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')) ?? freshState()
   } catch {
-    // Unreadable or blocked storage: start from the sample data.
+    // Unreadable or blocked storage: start from scratch.
+    return freshState()
   }
-  return freshState()
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
