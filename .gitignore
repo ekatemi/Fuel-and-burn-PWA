@@ -1,5 +1,6 @@
 node_modules
 dist
+fuel.tgz
 dev-dist
 *.local
 .DS_Store

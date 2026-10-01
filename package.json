@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:fuel": "tsc --noEmit && vite build --base=/fuel/ && tar -czf fuel.tgz -C dist .",
     "preview": "vite preview",
     "icons": "pwa-assets-generator --preset minimal-2023 public/icon.svg"
   },

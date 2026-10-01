@@ -8,6 +8,7 @@ npm run dev       # dev server (no service worker)
 npm run build     # type-check, then build to dist/ with the service worker
 npm run preview   # serve dist/ to test installing and offline use
 npm run icons     # regenerate the PNG icons from public/icon.svg
+npm run build:fuel  # build for https://mikhaylova.dev/fuel/ and pack it as fuel.tgz
 ```
 
 - `src/data/` holds the sample data and the food catalog; `src/lib/model.ts` holds the calculations.
