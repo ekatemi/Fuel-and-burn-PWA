@@ -25,6 +25,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid va
 p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2)}
 
 /* Layout helpers */
+.app.onboarding{padding-bottom:40px}
 .app{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:16px 20px 120px;display:flex;flex-direction:column;gap:16px}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .row.center{align-items:center}
@@ -50,6 +51,9 @@ p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2)}
 .chip{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
 .icon-btn{width:48px;height:48px;border-radius:24px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .icon-btn:hover{background:var(--track)}
+.icon-btn:disabled{opacity:.3;cursor:default;background:transparent}
+.icon-btn.flip svg{transform:scaleX(-1)}
+.daynav{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:18px;padding:0 4px;margin-top:-4px}
 .menu{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:max(16px,calc(50vw - 224px));background:var(--surface);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:15;padding:8px 0;min-width:220px}
 .menu button{display:block;width:100%;text-align:left;border:0;background:transparent;min-height:48px;padding:0 16px;font-size:15px}
 .menu button:hover{background:var(--track)}

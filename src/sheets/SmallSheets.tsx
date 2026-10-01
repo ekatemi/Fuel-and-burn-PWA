@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { PlusIcon, TrashIcon } from '../components/Icons'
+import { draftFrom, EMPTY_PROFILE, parseProfile, ProfileFields } from '../components/ProfileFields'
 import { Sheet } from '../components/Sheet'
 import { SNACKS } from '../data/demo'
 import { fmt, MACROS, planKcal } from '../lib/model'
@@ -43,10 +44,10 @@ export function FavsSheet() {
 }
 
 export function TargetsSheet() {
-  const { state, update, closeSheet } = useApp()
+  const { state, maint, update, closeSheet } = useApp()
   const { targets } = state
   const kcal = 4 * targets.protein + 9 * targets.fat + 4 * targets.carbs
-  const plan = planKcal(state.goal)
+  const plan = planKcal(state.goal, maint)
   const fits = Math.abs(kcal - plan) <= 150
 
   const adjust = (key: MacroKey, delta: number) =>
@@ -94,12 +95,12 @@ export function TargetsSheet() {
 }
 
 export function WeightSheet() {
-  const { state, update, closeSheet, showToast } = useApp()
+  const { state, update, today, closeSheet, showToast } = useApp()
   const [draft, setDraft] = useState(state.weight)
   const step = (delta: number) => setDraft((w) => Math.max(0, Math.round((w + delta) * 10) / 10))
 
   const save = () => {
-    update((s) => ({ ...s, weight: draft }))
+    update((s) => ({ ...s, weight: draft, weighIns: { ...s.weighIns, [today]: draft } }))
     closeSheet()
     showToast('Weight saved. Your trend updates as the week goes on.')
   }
@@ -143,6 +144,49 @@ export function SnacksSheet() {
         ))}
       </div>
       <p>Only ideas. Chips can absolutely stay on the menu.</p>
+    </Sheet>
+  )
+}
+
+export function ProfileSheet() {
+  const { state, today, update, closeSheet, showToast } = useApp()
+  const [draft, setDraft] = useState(state.profile ? draftFrom(state.profile, state.weight) : EMPTY_PROFILE)
+  const [error, setError] = useState('')
+
+  const save = (e: FormEvent) => {
+    e.preventDefault()
+    const parsed = parseProfile(draft)
+    if ('error' in parsed) return setError(parsed.error)
+    const { profile, weight } = parsed
+    update((s) => ({
+      ...s,
+      profile,
+      weight,
+      weighIns: weight === s.weight ? s.weighIns : { ...s.weighIns, [today]: weight },
+    }))
+    closeSheet()
+    showToast('Profile saved. Your maintenance is updated.')
+  }
+
+  return (
+    <Sheet title="Your profile">
+      <form className="col" style={{ gap: 14 }} onSubmit={save} noValidate>
+        <ProfileFields
+          draft={draft}
+          onChange={(next) => {
+            setDraft(next)
+            setError('')
+          }}
+        />
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
+        <button className="bigbtn primary" type="submit">
+          Save
+        </button>
+      </form>
     </Sheet>
   )
 }

@@ -1,21 +1,24 @@
-import { PlusIcon, StarIcon, TrashIcon } from '../components/Icons'
+import { BackIcon, PlusIcon, StarIcon, TrashIcon } from '../components/Icons'
 import { MacroBlock } from '../components/MacroBlock'
 import { QuickChips } from '../components/QuickChips'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
-import { TODAY_LABEL } from '../data/demo'
-import { eaten, fmt } from '../lib/model'
+import { addDays, longLabel, weekdayLong } from '../lib/dates'
+import { eaten, fmt, mealsOn } from '../lib/model'
 import { useApp } from '../state/AppContext'
 import type { Food, Meal } from '../types'
 
 export function FuelView() {
-  const { state, update, addMeals, removeMeals, openSheet, showToast } = useApp()
-  const { meals, favs, numbers } = state
+  const { state, update, today, diaryDate, setDiaryDate, addMeals, removeMeals, openSheet, showToast } = useApp()
+  const { favs, numbers } = state
+  const isToday = diaryDate === today
+  const meals = mealsOn(state.meals, diaryDate)
   const total = eaten(meals)
+  const dayName = isToday ? 'Today' : diaryDate === addDays(today, -1) ? 'Yesterday' : weekdayLong(diaryDate)
   const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
 
   const quickAdd = (food: Food) => {
-    const ids = addMeals([{ food, qty: 1, size: 'M' }])
+    const ids = addMeals([{ food, qty: 1, size: 'M' }], diaryDate)
     showToast('Added ' + food.name, () => removeMeals(ids))
   }
 
@@ -29,7 +32,7 @@ export function FuelView() {
       update((s) => ({ ...s, favs: s.favs.filter((f) => f.name !== meal.name) }))
       showToast('Removed from My foods')
     } else {
-      const { id: _id, time: _time, ...food } = meal
+      const { id: _id, date: _date, time: _time, ...food } = meal
       update((s) => ({ ...s, favs: [...s.favs, { ...food, id: s.nextId }], nextId: s.nextId + 1 }))
       showToast('Saved to My foods')
     }
@@ -37,18 +40,34 @@ export function FuelView() {
 
   return (
     <>
-      <TopBar subtitle={TODAY_LABEL} title="Fuel" />
+      <TopBar subtitle={longLabel(diaryDate)} title="Fuel" />
+      <div className="daynav">
+        <button className="icon-btn" aria-label="Previous day" onClick={() => setDiaryDate(addDays(diaryDate, -1))}>
+          <BackIcon size={20} />
+        </button>
+        <span className="h" aria-live="polite">
+          {dayName}
+        </span>
+        <button
+          className="icon-btn flip"
+          aria-label="Next day"
+          disabled={isToday}
+          onClick={() => setDiaryDate(addDays(diaryDate, 1))}
+        >
+          <BackIcon size={20} />
+        </button>
+      </div>
       <section className="card big">
         {numbers ? (
           <div className="baseline">
             <span className="num fuel-total">{fmt(total)}</span>
             <span className="muted" style={{ fontSize: 15 }}>
-              kcal today
+              {isToday ? 'kcal today' : 'kcal'}
             </span>
           </div>
         ) : (
           <div className="headline" style={{ fontSize: 24 }}>
-            {meals.length} {meals.length === 1 ? 'item' : 'items'} today
+            {meals.length} {meals.length === 1 ? 'item' : 'items'} {isToday ? 'today' : 'logged'}
           </div>
         )}
         <div className="row center" style={{ marginTop: 4 }}>
@@ -57,14 +76,14 @@ export function FuelView() {
             Edit targets
           </button>
         </div>
-        <MacroBlock />
+        <MacroBlock meals={meals} />
       </section>
 
       <QuickChips onPick={quickAdd} showManage />
 
       <div className="col" style={{ gap: 8 }}>
         <div className="row">
-          <span className="h">Logged today</span>
+          <span className="h">{isToday ? 'Logged today' : 'Logged'}</span>
           {numbers && (
             <span className="muted" style={{ fontSize: 13 }}>
               {fmt(total)} kcal
@@ -107,7 +126,7 @@ export function FuelView() {
           </div>
         ) : (
           <div className="card">
-            <p>Nothing logged yet today.</p>
+            <p>{isToday ? 'Nothing logged yet today.' : 'Nothing logged on this day.'}</p>
           </div>
         )}
       </div>

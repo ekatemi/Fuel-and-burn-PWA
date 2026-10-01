@@ -67,6 +67,9 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
           <button role="menuitem" onClick={pick(() => openSheet('goal'))}>
             Change goal
           </button>
+          <button role="menuitem" onClick={pick(() => openSheet('profile'))}>
+            Edit profile
+          </button>
           <button
             role="menuitemcheckbox"
             aria-checked={!state.numbers}
@@ -80,10 +83,10 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
           <button
             role="menuitem"
             onClick={pick(() => {
-              if (window.confirm('Reset all demo data?')) resetData()
+              if (window.confirm('Erase your diary, profile and saved foods, and start over?')) resetData()
             })}
           >
-            Reset demo data
+            Start over
           </button>
           <button role="menuitem" onClick={pick(() => showToast('Fuel & Burn. Your data stays on this device.'))}>
             About

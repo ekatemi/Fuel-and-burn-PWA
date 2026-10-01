@@ -3,8 +3,8 @@ import { ChevronIcon, PlusIcon } from '../components/Icons'
 import { Sparkline } from '../components/Sparkline'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
-import { MAINT, TODAY_LABEL } from '../data/demo'
-import { eaten, goalLabel, periodData, planKcal, status, weekBalance } from '../lib/model'
+import { longLabel, weekdayLong } from '../lib/dates'
+import { eaten, goalLabel, mealsOn, periodData, planKcal, status, weekSummary } from '../lib/model'
 import { useApp } from '../state/AppContext'
 import type { Period } from '../types'
 
@@ -16,14 +16,17 @@ const PERIODS: [Period, string][] = [
 ]
 
 export function TodayView() {
-  const { state, update, openSheet } = useApp()
+  const { state, update, today, maint, openSheet } = useApp()
   const { goal, meals, numbers } = state
-  const period = periodData(state.period, meals)
+  const period = periodData(state.period, meals, today, maint)
   const periodStatus = status(period.balance, period.avgBurn, goal)
-  const weekStatus = status(weekBalance(meals), MAINT, goal)
+  const week = weekSummary(meals, today, maint)
+  // The most recent earlier day this week that ended clearly above maintenance.
+  const biggerDay = week.items.findLast((d) => !d.live && d.value != null && d.value > 100)?.date
+  const biggerDayKey = `bigger-${biggerDay}`
 
   let tip = null
-  if (weekStatus.kind === 'big') {
+  if (week.loggedDays > 0 && status(week.balance, maint, goal).kind === 'big') {
     tip = (
       <TipBox
         title="Your body could use a bit more"
@@ -37,32 +40,35 @@ export function TodayView() {
         energy. A snack or a slightly bigger dinner today would be a good idea.
       </TipBox>
     )
-  } else if (eaten(meals) > planKcal(goal) + 300) {
+  } else if (eaten(mealsOn(meals, today)) > planKcal(goal, maint) + 300) {
     tip = (
       <TipBox title="A bigger day today">
         That happens, and it’s completely fine. What counts is your weekly average. Tomorrow, just eat as usual, no
         need to make up for it.
       </TipBox>
     )
-  } else if (!state.dismissed.tue) {
+  } else if (biggerDay && !state.dismissed[biggerDayKey]) {
     tip = (
       <TipBox
-        title="Tuesday was a bigger day"
+        title={`${weekdayLong(biggerDay)} was a bigger day`}
         actions={
-          <button className="tbtn" onClick={() => update((s) => ({ ...s, dismissed: { ...s.dismissed, tue: true } }))}>
+          <button
+            className="tbtn"
+            onClick={() => update((s) => ({ ...s, dismissed: { ...s.dismissed, [biggerDayKey]: true } }))}
+          >
             Got it
           </button>
         }
       >
-        That’s completely fine. What counts is the weekly average, and your week is still in a deficit. No need to eat
-        less today.
+        That’s completely fine. What counts is the weekly average
+        {week.balance < 0 && ', and your week is still in a deficit'}. No need to eat less today.
       </TipBox>
     )
   }
 
   return (
     <>
-      <TopBar subtitle={TODAY_LABEL} title="Today" />
+      <TopBar subtitle={longLabel(today)} title="Today" />
       <section className="card big" aria-label="Energy balance">
         <div className="seg full" role="radiogroup" aria-label="Period">
           {PERIODS.map(([key, label]) => (
@@ -84,8 +90,19 @@ export function TodayView() {
             🎯 {goalLabel(goal)}
           </button>
         </div>
-        <BalanceBar period={period} status={periodStatus} />
-        <p>{periodStatus.text.replace('this week', period.phrase)}</p>
+        {period.empty ? (
+          <>
+            <div className="headline" style={{ fontSize: 22 }}>
+              No finished days this week yet
+            </div>
+            <p>Your weekly average counts finished days only, so today joins it tomorrow.</p>
+          </>
+        ) : (
+          <>
+            <BalanceBar period={period} status={periodStatus} />
+            <p>{periodStatus.text.replace('this week', period.phrase)}</p>
+          </>
+        )}
       </section>
 
       <button className="linkcard" aria-label="Open trends" onClick={() => update((s) => ({ ...s, view: 'trends' }))}>
@@ -137,7 +154,7 @@ export function TodayView() {
           Log weight
         </button>
       </div>
-      <div className="proto">Demo data · stored on this device</div>
+      <div className="proto">Stored on this device</div>
     </>
   )
 }

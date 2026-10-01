@@ -1,13 +1,14 @@
 import { MACROS, macroSum } from '../lib/model'
 import { useApp } from '../state/AppContext'
+import type { Meal } from '../types'
 
-export function MacroBlock() {
+export function MacroBlock({ meals }: { meals: Meal[] }) {
   const { state } = useApp()
   const showNumbers = state.numbers
   return (
     <div className="macros">
       {MACROS.map(({ key, icon, label }) => {
-        const value = Math.round(macroSum(state.meals, key))
+        const value = Math.round(macroSum(meals, key))
         const target = state.targets[key]
         const pct = Math.min(100, (value / Math.max(target, 1)) * 100)
         const cls = value < target ? 'm-low' : 'm-ok'

@@ -1,50 +1,15 @@
-// Sample data carried over from the prototype. Everything here stands in for
-// what will later come from real logging and a watch sync.
-import type { AppState, Favorite, Food } from '../types'
-
-export const TODAY_LABEL = 'Thursday, September 24'
-export const MAINT = 1870
-export const TODAY_BURN = 1870
-export const AVG_BURN = 1880
-
-export const PAST = [
-  { day: 'Mon', eaten: 1620, burn: 1990 },
-  { day: 'Tue', eaten: 1980, burn: 1850 },
-  { day: 'Wed', eaten: 1550, burn: 1840 },
-]
+// Sample data carried over from the prototype. The diary itself is real and dated;
+// what is here stands in for a watch sync and for history older than the diary.
+import { addDays } from '../lib/dates'
+import type { AppState, Favorite, Food, Meal, Profile } from '../types'
 
 // Average daily balance for the seven weeks before the current one.
 export const OLD_WEEKS = [-310, -220, 150, -260, -40, -300, -280]
 export const BODYFAT = [27.8, 27.6, 27.7, 27.3, 27.2, 26.9, 26.7, 26.5]
 
-export const SEP_WEEKS: [string, number][] = [
-  ['Sep 1', -300],
-  ['Sep 8', -280],
-  ['Sep 15', -210],
-]
-export const MONTHS: [string, number][] = [
-  ['Jun', -50],
-  ['Jul', 120],
-  ['Aug', 80],
-  ['Sep', -150],
-  ['Oct', -220],
-  ['Nov', -180],
-  ['Dec', 160],
-  ['Jan', -260],
-  ['Feb', -240],
-  ['Mar', -210],
-  ['Apr', -90],
-  ['May', -200],
-  ['Jun', -230],
-  ['Jul', 40],
-  ['Aug', -190],
-]
-
-export const BURN_PARTS = [
-  { key: 'bmr', name: 'Resting burn', note: 'keeps your body running', kcal: 1250 },
-  { key: 'act', name: 'Daily activity', note: 'steps, chores, moving around', kcal: 440 },
-  { key: 'sport', name: 'Workout', note: 'strength, 45 min', kcal: 180 },
-]
+// Average daily balance for the three weeks, and the fifteen months, before the current one.
+export const SAMPLE_WEEKS = [-300, -280, -210]
+export const SAMPLE_MONTHS = [-50, 120, 80, -150, -220, -180, 160, -260, -240, -210, -90, -200, -230, 40, -190]
 
 export const SNACKS = [
   { name: 'Greek yogurt with berries', kcal: '~150 kcal', note: 'lots of protein' },
@@ -53,7 +18,7 @@ export const SNACKS = [
   { name: 'Cottage cheese', kcal: '~180 kcal', note: 'filling' },
 ]
 
-// How often each food was logged before today, for "Often in your diary".
+// How often each food was logged before the diary starts, for "Often in your diary".
 export const HISTORY: (Food & { count: number })[] = [
   { name: 'Oatmeal', portion: '1 bowl', kcal: 300, protein: 10, carbs: 50, fat: 6, fiber: 8, count: 9 },
   { name: 'Banana', portion: '1 medium', kcal: 105, protein: 1, carbs: 27, fat: 0, fiber: 3, count: 7 },
@@ -70,20 +35,84 @@ const defaultFavs = (): Favorite[] => [
   { id: 103, name: 'Croissant', portion: '1 piece', kcal: 230, protein: 5, carbs: 26, fat: 12, fiber: 1 },
 ]
 
+type Entry = [time: string, name: string, portion: string, kcal: number, protein: number, carbs: number, fat: number, fiber: number]
+
+// Sample diary, as days before today (0 = today).
+const SAMPLE_DIARY: [daysAgo: number, entries: Entry[]][] = [
+  [3, [
+    ['08:10', 'Oatmeal', '1 bowl', 300, 10, 50, 6, 8],
+    ['13:00', 'Chicken breast with rice', '150 g, 1 cup', 460, 50, 45, 6, 1],
+    ['16:20', 'Apple', '1 medium', 95, 0, 25, 0, 4],
+    ['16:20', 'Almonds', '30 g', 175, 6, 6, 15, 4],
+    ['19:30', 'Salmon with salad', '150 g, 1 bowl', 460, 33, 10, 30, 3],
+    ['21:00', 'Greek yogurt', '1 pot, 150 g', 130, 15, 6, 5, 0],
+  ]],
+  [2, [
+    ['08:30', 'Avocado toast with eggs', '2 slices, 2 eggs', 480, 24, 38, 26, 8],
+    ['11:00', 'Coffee with milk', '1 cup', 60, 3, 5, 3, 0],
+    ['13:45', 'Pasta with sauce', '1 plate', 600, 22, 85, 15, 5],
+    ['17:00', 'Banana', '1 medium', 105, 1, 27, 0, 3],
+    ['20:30', 'Tortilla española', '1 slice', 230, 8, 15, 15, 1],
+    ['20:30', '2 × Beer', '330 ml', 290, 2, 26, 0, 0],
+    ['22:00', 'Potato chips', '1 bag, 45 g', 240, 3, 24, 15, 2],
+  ]],
+  [1, [
+    ['08:20', 'Greek yogurt with chia', '1 bowl', 220, 17, 14, 10, 6],
+    ['13:10', 'Grilled chicken salad', '1 large bowl', 620, 48, 22, 34, 5],
+    ['16:00', 'Apple', '1 medium', 95, 0, 25, 0, 4],
+    ['17:30', 'Protein shake', '1 scoop with milk', 205, 30, 12, 5, 0],
+    ['20:00', 'Vegetable soup', '1 bowl', 120, 4, 18, 3, 4],
+    ['20:00', '2 × Toast', '1 slice', 180, 6, 30, 2, 4],
+    ['21:30', 'Banana', '1 medium', 105, 1, 27, 0, 3],
+  ]],
+  [0, [
+    ['08:40', 'Avocado toast with eggs', '2 slices, 2 eggs', 480, 24, 38, 26, 8],
+    ['13:15', 'Grilled chicken salad', '1 large bowl', 620, 48, 22, 34, 5],
+    ['17:30', 'Protein shake', '1 scoop with milk', 205, 30, 12, 5, 0],
+    ['17:30', 'Banana', '1 medium', 105, 1, 27, 0, 3],
+  ]],
+]
+
+function sampleMeals(today: string): Meal[] {
+  let id = 1
+  return SAMPLE_DIARY.flatMap(([daysAgo, entries]) =>
+    entries.map(([time, name, portion, kcal, protein, carbs, fat, fiber]) => ({
+      id: id++,
+      date: addDays(today, -daysAgo),
+      time,
+      name,
+      portion,
+      kcal,
+      protein,
+      carbs,
+      fat,
+      fiber,
+    })),
+  )
+}
+
+// With the sample weight of 55.4 kg this profile gives a maintenance of 1,870 kcal.
+const SAMPLE_PROFILE: Profile = { sex: 'female', age: 37, heightCm: 160, activity: 'moderate' }
+
+/** A first launch: no profile yet, so the app opens on onboarding with an empty diary. */
 export const freshState = (): AppState => ({
   view: 'today',
+  profile: null,
   period: 'week',
   goal: { type: 'cut', pace: 'gentle' },
   numbers: true,
   targets: { protein: 115, fat: 60, carbs: 140, fiber: 22 },
   weight: 55.4,
+  weighIns: {},
   favs: defaultFavs(),
   dismissed: {},
   nextId: 200,
-  meals: [
-    { id: 1, time: '08:40', name: 'Avocado toast with eggs', portion: '2 slices, 2 eggs', kcal: 480, protein: 24, carbs: 38, fat: 26, fiber: 8 },
-    { id: 2, time: '13:15', name: 'Grilled chicken salad', portion: '1 large bowl', kcal: 620, protein: 48, carbs: 22, fat: 34, fiber: 5 },
-    { id: 3, time: '17:30', name: 'Protein shake', portion: '1 scoop with milk', kcal: 205, protein: 30, carbs: 12, fat: 5, fiber: 0 },
-    { id: 4, time: '17:30', name: 'Banana', portion: '1 medium', kcal: 105, protein: 1, carbs: 27, fat: 0, fiber: 3 },
-  ],
+  meals: [],
+})
+
+/** A filled-in profile with a few days of diary, for looking around. */
+export const sampleState = (today: string): AppState => ({
+  ...freshState(),
+  profile: SAMPLE_PROFILE,
+  meals: sampleMeals(today),
 })

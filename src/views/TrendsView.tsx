@@ -1,7 +1,8 @@
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { BODYFAT, OLD_WEEKS } from '../data/demo'
-import { weekBalance } from '../lib/model'
+import { addDays, monthDay, weekStart } from '../lib/dates'
+import { weekSummary } from '../lib/model'
 import { useApp } from '../state/AppContext'
 
 // Bar and point centres for the eight weeks, shared by both charts.
@@ -20,9 +21,10 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 export function TrendsView() {
-  const { state } = useApp()
+  const { state, today, maint } = useApp()
   const { numbers } = state
-  const weeks = [...OLD_WEEKS, Math.round(weekBalance(state.meals))]
+  const weeks = [...OLD_WEEKS, Math.round(weekSummary(state.meals, today, maint).balance)]
+  const weekLabel = (index: number) => monthDay(addDays(weekStart(today), (index - OLD_WEEKS.length) * 7))
   const stats = [
     { label: 'Body fat', value: '−0.9 kg', color: 'var(--burn-ink)' },
     { label: 'Lean mass', value: '+0.2 kg', color: 'var(--ink)' },
@@ -91,10 +93,10 @@ export function TrendsView() {
             )
           })}
           <text x={COLUMNS[0]} y="152" textAnchor="middle" {...AXIS}>
-            Aug 3
+            {weekLabel(0)}
           </text>
           <text x={COLUMNS[4]} y="152" textAnchor="middle" {...AXIS}>
-            Aug 31
+            {weekLabel(4)}
           </text>
           <text x={COLUMNS[7]} y="152" textAnchor="middle" {...AXIS}>
             now
@@ -129,7 +131,7 @@ export function TrendsView() {
         </svg>
       </section>
 
-      <TipBox title="The surplus week in August">
+      <TipBox title="One surplus week">
         One higher week didn’t change the direction: body fat kept trending down afterwards. Single weeks go up and
         down, and the long line is what matters.
       </TipBox>

@@ -9,7 +9,7 @@ export function Sparkline({ items }: { items: PeriodItem[] }) {
     sum += item.value
     totals.push(sum)
   }
-  if (totals.length < 2) totals.unshift(0)
+  while (totals.length < 2) totals.unshift(0)
 
   const min = Math.min(...totals, 0)
   const max = Math.max(...totals, 0)

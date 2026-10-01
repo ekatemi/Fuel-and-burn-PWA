@@ -11,5 +11,6 @@ npm run icons     # regenerate the PNG icons from public/icon.svg
 ```
 
 - `src/data/` holds the sample data and the food catalog; `src/lib/model.ts` holds the calculations.
+- The food diary is real and stored per day (`src/lib/dates.ts`). Daily burn is estimated from the onboarding profile (Mifflin–St Jeor × activity level). Body-composition trends and history older than the diary are still sample data.
 - State is saved in `localStorage` on the device.
 - Installing needs HTTPS (or `localhost`).

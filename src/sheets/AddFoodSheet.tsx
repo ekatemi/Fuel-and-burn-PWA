@@ -9,7 +9,9 @@ import type { DraftItem, PortionSize } from '../types'
 const SIZES: PortionSize[] = ['S', 'M', 'L']
 
 export function AddFoodSheet() {
-  const { state, update, addMeals, removeMeals, closeSheet, showToast } = useApp()
+  const { state, update, today, diaryDate, addMeals, removeMeals, closeSheet, showToast } = useApp()
+  // Opened from the diary, food goes to the day being viewed; anywhere else, to today.
+  const date = state.view === 'fuel' ? diaryDate : today
   const [text, setText] = useState('')
   const [items, setItems] = useState<DraftItem[]>([])
   const [tried, setTried] = useState(false)
@@ -20,7 +22,7 @@ export function AddFoodSheet() {
 
   const commit = () => {
     if (!known.length) return
-    const ids = addMeals(known)
+    const ids = addMeals(known, date)
     closeSheet()
     if (state.view !== 'fuel') update((s) => ({ ...s, view: 'today' }))
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -115,7 +117,7 @@ export function AddFoodSheet() {
       />
 
       <button className="bigbtn primary" disabled={!known.length} onClick={commit}>
-        {known.length && state.numbers ? `Add ${fmt(total)} kcal` : 'Add to today'}
+        {known.length && state.numbers ? `Add ${fmt(total)} kcal` : date === today ? 'Add to today' : 'Add to this day'}
       </button>
       <p className="muted fine">A simple built-in parser stands in for AI recognition.</p>
     </Sheet>

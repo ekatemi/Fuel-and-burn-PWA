@@ -4,11 +4,12 @@ import { Toast } from './components/Toast'
 import { AddFoodSheet } from './sheets/AddFoodSheet'
 import { GoalSheet } from './sheets/GoalSheet'
 import { NewFoodSheet } from './sheets/NewFoodSheet'
-import { FavsSheet, SnacksSheet, TargetsSheet, WeightSheet } from './sheets/SmallSheets'
+import { FavsSheet, ProfileSheet, SnacksSheet, TargetsSheet, WeightSheet } from './sheets/SmallSheets'
 import { useApp } from './state/AppContext'
 import type { SheetName, View } from './types'
 import { BurnView } from './views/BurnView'
 import { FuelView } from './views/FuelView'
+import { Onboarding } from './views/Onboarding'
 import { TodayView } from './views/TodayView'
 import { TrendsView } from './views/TrendsView'
 
@@ -22,6 +23,7 @@ const VIEWS: Record<View, () => React.JSX.Element> = {
 const SHEETS: Record<SheetName, () => React.JSX.Element> = {
   add: AddFoodSheet,
   goal: GoalSheet,
+  profile: ProfileSheet,
   newfav: NewFoodSheet,
   favs: FavsSheet,
   targets: TargetsSheet,
@@ -46,6 +48,8 @@ export default function App() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [sheet, closeSheet])
+
+  if (!state.profile) return <Onboarding />
 
   return (
     <>
