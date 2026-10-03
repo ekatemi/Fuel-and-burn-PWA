@@ -90,6 +90,8 @@ details p{padding-bottom:16px;font-size:13px}
 .seg.full button{justify-content:center;padding:0 4px}
 .seg button+button{border-left:1px solid var(--outline)}
 .seg button[aria-checked="true"]{background:var(--burn-cont);color:var(--on-burn-cont);font-weight:600}
+.seg.editing{border-style:dashed}
+.seg.editing button+button{border-left-style:dashed}
 
 /* Tips */
 .tip{background:var(--tip);color:var(--tip-ink);border-radius:22px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
@@ -120,6 +122,10 @@ details p{padding-bottom:16px;font-size:13px}
 .item .main{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
 .item .nm{font-size:15px;font-weight:600}
 .item .pt{font-size:12px;color:var(--muted)}
+.item.pick{width:100%;border:0;border-radius:0;background:transparent;text-align:left;padding:0;font-size:inherit}
+.item.pick+.item.pick{border-top:1px solid var(--track)}
+.item.pick:disabled{cursor:default}
+.item.pick:disabled .nm{color:var(--muted)}
 
 /* Bottom navigation */
 .navbar{position:fixed;left:0;right:0;bottom:0;background:var(--nav);box-shadow:0 -1px 0 var(--line);padding:10px 8px calc(14px + env(safe-area-inset-bottom,0px));z-index:5}

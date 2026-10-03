@@ -51,7 +51,7 @@ No macros on Today.
 
 **Burn**: maintenance with range and confidence; today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
 
-**Trends**: weekly balance bars (deficit below the line in blue, surplus above in orange, maintenance grey), weight and body fat trend, fat mass vs lean mass, expected vs actual change.
+**Trends**: weight trend (7-day smoothing, unusual readings left out), optional body fat trend, fat mass vs lean mass, expected vs actual change. No weekly balance chart: the balance lives on Today.
 
 ## Goals
 

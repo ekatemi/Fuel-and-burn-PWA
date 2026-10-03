@@ -72,6 +72,14 @@ export const MET = {
   elliptical: 5.0,
   hiit: 8.0,
   housework: 3.0,
+  // Calisthenics. The Compendium has only general calisthenics (light 2.8, moderate 3.8,
+  // vigorous 8.0); skill and hold values are estimates for a session including rest between
+  // sets. Check before release.
+  calisthenics_handstand: 3.5,
+  calisthenics_plank: 3.8,
+  calisthenics_back_lever: 4.5,
+  calisthenics_fundamentals: 3.8,
+  calisthenics_front_lever: 5.0,
 } as const;
 export type OtherType = keyof typeof MET;
 

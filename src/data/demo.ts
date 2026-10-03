@@ -3,8 +3,6 @@
 import { addDays } from '../lib/dates'
 import type { AppState, Favorite, Food, Meal, Profile } from '../types'
 
-// Average daily balance for the seven weeks before the current one.
-export const OLD_WEEKS = [-310, -220, 150, -260, -40, -300, -280]
 
 // Average daily balance for the three weeks, and the fifteen months, before the current one.
 export const SAMPLE_WEEKS = [-300, -280, -210]
@@ -108,6 +106,7 @@ export const freshState = (): AppState => ({
   nextId: 200,
   meals: [],
   activities: [],
+  activityShortcuts: ['steps', 'walk', 'run', 'other'],
 })
 
 // Eight weeks of morning weigh-ins on most days, drifting down about 0.1 kg a week, with

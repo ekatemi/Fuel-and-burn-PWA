@@ -1,4 +1,5 @@
 import type { Activity as ActivityInput, Burn } from './lib/activity'
+import type { Shortcut } from './lib/activityLabels'
 
 export interface Food {
   name: string
@@ -86,6 +87,8 @@ export interface AppState {
   bodyFat: Record<string, number>
   meals: Meal[]
   activities: ActivityEntry[]
+  /** The four buttons at the top of "Add activity", chosen by the user. */
+  activityShortcuts: Shortcut[]
   favs: Favorite[]
   dismissed: Record<string, boolean>
   nextId: number
