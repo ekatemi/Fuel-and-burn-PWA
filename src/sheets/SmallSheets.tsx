@@ -97,12 +97,22 @@ export function TargetsSheet() {
 export function WeightSheet() {
   const { state, update, today, closeSheet, showToast } = useApp()
   const [draft, setDraft] = useState(state.weight)
+  const [fat, setFat] = useState(state.bodyFat[today] != null ? String(state.bodyFat[today]) : '')
+  const [error, setError] = useState('')
   const step = (delta: number) => setDraft((w) => Math.max(0, Math.round((w + delta) * 10) / 10))
+  const lastFat = Object.entries(state.bodyFat).sort(([a], [b]) => b.localeCompare(a))[0]?.[1]
 
   const save = () => {
-    update((s) => ({ ...s, weight: draft, weighIns: { ...s.weighIns, [today]: draft } }))
+    const pct = Math.round(parseFloat(fat.replace(',', '.')) * 10) / 10
+    if (fat.trim() && !(pct >= 3 && pct <= 60)) return setError('Body fat should be between 3 and 60%.')
+    update((s) => ({
+      ...s,
+      weight: draft,
+      weighIns: { ...s.weighIns, [today]: draft },
+      bodyFat: fat.trim() ? { ...s.bodyFat, [today]: pct } : s.bodyFat,
+    }))
     closeSheet()
-    showToast('Weight saved. Your trend updates as the week goes on.')
+    showToast('Saved. Your trend updates as the week goes on.')
   }
 
   return (
@@ -122,6 +132,25 @@ export function WeightSheet() {
           +
         </button>
       </div>
+      <label className="fld">
+        <span>Body fat %, optional</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          placeholder={lastFat != null ? `last: ${lastFat}%` : 'from a smart scale or measurement'}
+          value={fat}
+          onChange={(e) => {
+            setFat(e.target.value)
+            setError('')
+          }}
+        />
+      </label>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
       <button className="bigbtn primary" onClick={save}>
         Save
       </button>

@@ -1,3 +1,5 @@
+import type { Activity as ActivityInput, Burn } from './lib/activity'
+
 export interface Food {
   name: string
   portion: string
@@ -23,6 +25,16 @@ export interface Meal extends Food {
   time: string
 }
 
+export interface ActivityEntry {
+  id: number
+  /** Local day, as YYYY-MM-DD. */
+  date: string
+  time: string
+  input: ActivityInput
+  /** Calculated when logged, with the weight at that time. */
+  burn: Burn
+}
+
 export type MacroKey = 'protein' | 'fat' | 'carbs' | 'fiber'
 export type Targets = Record<MacroKey, number>
 
@@ -44,7 +56,7 @@ export interface Profile {
 
 export type Period = 'week' | 'month' | 'year' | 'all'
 export type View = 'today' | 'fuel' | 'burn' | 'trends'
-export type SheetName = 'add' | 'goal' | 'profile' | 'newfav' | 'favs' | 'targets' | 'weight' | 'snacks'
+export type SheetName = 'add' | 'activity' | 'goal' | 'profile' | 'newfav' | 'favs' | 'targets' | 'weight' | 'snacks'
 
 export type PortionSize = 'S' | 'M' | 'L'
 export interface KnownItem {
@@ -70,7 +82,10 @@ export interface AppState {
   weight: number
   /** Weigh-ins by day (YYYY-MM-DD), in kg. */
   weighIns: Record<string, number>
+  /** Optional body-fat readings by day (YYYY-MM-DD), in %. */
+  bodyFat: Record<string, number>
   meals: Meal[]
+  activities: ActivityEntry[]
   favs: Favorite[]
   dismissed: Record<string, boolean>
   nextId: number

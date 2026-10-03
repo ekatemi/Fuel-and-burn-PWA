@@ -1,7 +1,9 @@
 import { HISTORY, SAMPLE_MONTHS, SAMPLE_WEEKS } from '../data/demo'
 import { FOODS } from '../data/foods'
+import { activityAdjustment, restingKcalPerDay } from './activity'
 import { addDays, monthDay, monthShort, monthStart, monthYear, weekdayShort, weekStart } from './dates'
 import type {
+  ActivityEntry,
   DraftItem,
   Favorite,
   Food,
@@ -37,6 +39,35 @@ export const MACROS: { key: MacroKey; icon: string; label: string }[] = [
 export const eaten = (meals: Meal[]) => meals.reduce((a, m) => a + m.kcal, 0)
 export const macroSum = (meals: Meal[], key: MacroKey) => meals.reduce((a, m) => a + m[key], 0)
 export const mealsOn = (meals: Meal[], date: string) => meals.filter((m) => m.date === date)
+export const activitiesOn = (activities: ActivityEntry[], date: string) => activities.filter((a) => a.date === date)
+export const activityKcal = (activities: ActivityEntry[]) => activities.reduce((a, e) => a + e.burn.kcal, 0)
+
+function median(values: number[]) {
+  if (!values.length) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = sorted.length >> 1
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+const TYPICAL_WINDOW_DAYS = 14
+
+/**
+ * Logged activity on a typical day: the median over the previous 14 days that have anything
+ * in the diary, counting days without logged activity as 0. 0 while there is no history.
+ */
+export function typicalActivityKcal(meals: Meal[], activities: ActivityEntry[], date: string) {
+  const from = addDays(date, -TYPICAL_WINDOW_DAYS)
+  const days = new Set(
+    [...meals, ...activities].map((e) => e.date).filter((d) => d >= from && d < date),
+  )
+  return median([...days].map((d) => activityKcal(activitiesOn(activities, d))))
+}
+
+/** Burn for one day: maintenance plus how far that day's logged activity was from a typical day. */
+export function dayBurn(maint: number, meals: Meal[], activities: ActivityEntry[], date: string) {
+  const logged = activityKcal(activitiesOn(activities, date))
+  return maint + activityAdjustment(logged, typicalActivityKcal(meals, activities, date))
+}
 
 // ---- Burn ------------------------------------------------------------------
 
@@ -47,14 +78,14 @@ export const ACTIVITY: Record<Activity, { name: string; desc: string; factor: nu
   active: { name: 'Very active', desc: 'Hard exercise 6–7 days a week', factor: 1.725 },
 }
 
-/** Resting energy use in kcal a day (Mifflin–St Jeor). */
-export function restingBurn(profile: Profile, weightKg: number) {
-  return 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age + (profile.sex === 'male' ? 5 : -161)
+/** Resting energy use in kcal a day: Katch–McArdle when body fat is logged, otherwise Mifflin–St Jeor. */
+export function restingBurn(profile: Profile, weightKg: number, bodyFatPct?: number | null) {
+  return restingKcalPerDay({ ...profile, weightKg, bodyFatPct: bodyFatPct ?? undefined })
 }
 
 /** Estimated kcal burned on a typical day. */
-export function maintenance(profile: Profile, weightKg: number) {
-  return r10(restingBurn(profile, weightKg) * ACTIVITY[profile.activity].factor)
+export function maintenance(profile: Profile, weightKg: number, bodyFatPct?: number | null) {
+  return r10(restingBurn(profile, weightKg, bodyFatPct) * ACTIVITY[profile.activity].factor)
 }
 
 const r5 = (x: number) => Math.round(x / 5) * 5
@@ -194,10 +225,11 @@ export interface WeekSummary {
  * The current week, averaged over the finished days that have something logged.
  * Today is left out of the average because it is still being logged.
  */
-export function weekSummary(meals: Meal[], today: string, maint: number): WeekSummary {
+export function weekSummary(meals: Meal[], today: string, burnOn: (date: string) => number): WeekSummary {
   const start = weekStart(today)
   const items: PeriodItem[] = []
   let eatenSum = 0
+  let burnSum = 0
   let loggedDays = 0
   for (let i = 0; i < 7; i++) {
     const date = addDays(start, i)
@@ -205,17 +237,19 @@ export function weekSummary(meals: Meal[], today: string, maint: number): WeekSu
     const logged = dayMeals.length > 0
     if (logged && date < today) {
       eatenSum += eaten(dayMeals)
+      burnSum += burnOn(date)
       loggedDays++
     }
     items.push({
       label: weekdayShort(date),
       date,
-      value: logged ? eaten(dayMeals) - maint : null,
+      value: logged ? eaten(dayMeals) - burnOn(date) : null,
       live: date === today,
     })
   }
   const avgEaten = loggedDays ? eatenSum / loggedDays : 0
-  return { items, loggedDays, avgEaten, avgBurn: maint, balance: loggedDays ? avgEaten - maint : 0 }
+  const avgBurn = loggedDays ? burnSum / loggedDays : burnOn(today)
+  return { items, loggedDays, avgEaten, avgBurn, balance: loggedDays ? avgEaten - avgBurn : 0 }
 }
 
 export interface PeriodData {
@@ -228,15 +262,18 @@ export interface PeriodData {
   balance: number
   avgEaten: number
   avgBurn: number
-  fatChange: string
-  weightChange: string
-  trendLabel: string
 }
 
 const known = (items: PeriodItem[]) => items.flatMap((i) => (i.value == null ? [] : [i.value]))
 
-export function periodData(period: Period, meals: Meal[], today: string, maint: number): PeriodData {
-  const week = weekSummary(meals, today, maint)
+export function periodData(
+  period: Period,
+  meals: Meal[],
+  today: string,
+  maint: number,
+  burnOn: (date: string) => number,
+): PeriodData {
+  const week = weekSummary(meals, today, burnOn)
   if (period === 'week') {
     return {
       title: 'This week',
@@ -246,9 +283,6 @@ export function periodData(period: Period, meals: Meal[], today: string, maint: 
       balance: week.balance,
       avgEaten: week.avgEaten,
       avgBurn: week.avgBurn,
-      fatChange: '−0.1 kg',
-      weightChange: '−0.1 kg',
-      trendLabel: 'this week',
     }
   }
 
@@ -267,10 +301,10 @@ export function periodData(period: Period, meals: Meal[], today: string, maint: 
 
   const base =
     period === 'month'
-      ? { title: 'This month', phrase: 'this month', items: monthItems, fatChange: '−0.5 kg', weightChange: '−0.4 kg', trendLabel: 'this month' }
+      ? { title: 'This month', phrase: 'this month', items: monthItems }
       : period === 'year'
-        ? { title: 'Past 12 months', phrase: 'over the past year', items: months.slice(-12), fatChange: '−2.4 kg', weightChange: '−2.0 kg', trendLabel: 'past 12 months' }
-        : { title: `Since you started, ${started}`, phrase: 'overall', items: months, fatChange: '−2.6 kg', weightChange: '−2.1 kg', trendLabel: `since ${started}` }
+        ? { title: 'Past 12 months', phrase: 'over the past year', items: months.slice(-12) }
+        : { title: `Since you started, ${started}`, phrase: 'overall', items: months }
 
   const balance = avg(known(base.items))
   return { ...base, empty: false, balance, avgBurn: maint, avgEaten: maint + balance }

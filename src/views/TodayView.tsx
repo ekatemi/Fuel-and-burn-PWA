@@ -1,10 +1,11 @@
 import { BalanceBar } from '../components/BalanceBar'
 import { ChevronIcon, PlusIcon } from '../components/Icons'
-import { Sparkline } from '../components/Sparkline'
+import { TrendLine } from '../components/TrendLine'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
-import { longLabel, weekdayLong } from '../lib/dates'
+import { addDays, longLabel, weekdayLong } from '../lib/dates'
 import { eaten, goalLabel, mealsOn, periodData, planKcal, status, weekSummary } from '../lib/model'
+import { changeWords, formatChange, trendChange, trendSeries } from '../lib/weight'
 import { useApp } from '../state/AppContext'
 import type { Period } from '../types'
 
@@ -16,14 +17,29 @@ const PERIODS: [Period, string][] = [
 ]
 
 export function TodayView() {
-  const { state, update, today, maint, openSheet } = useApp()
+  const { state, update, today, maint, burnOn, weighIns, openSheet } = useApp()
   const { goal, meals, numbers } = state
-  const period = periodData(state.period, meals, today, maint)
+  const period = periodData(state.period, meals, today, maint, burnOn)
   const periodStatus = status(period.balance, period.avgBurn, goal)
-  const week = weekSummary(meals, today, maint)
+  const week = weekSummary(meals, today, burnOn)
   // The most recent earlier day this week that ended clearly above maintenance.
   const biggerDay = week.items.findLast((d) => !d.live && d.value != null && d.value > 100)?.date
   const biggerDayKey = `bigger-${biggerDay}`
+
+  // Weight trend over the selected period (the week view looks back 7 days).
+  const firstWeighIn = weighIns[0]?.date ?? today
+  const trendFrom =
+    state.period === 'week'
+      ? addDays(today, -6)
+      : state.period === 'month'
+        ? addDays(today, -29)
+        : state.period === 'year'
+          ? addDays(today, -364)
+          : firstWeighIn
+  const trendLabel =
+    state.period === 'week' ? 'past 7 days' : state.period === 'month' ? 'past 30 days' : state.period === 'year' ? 'past 12 months' : 'since your first weigh-in'
+  const trend = trendSeries(weighIns, trendFrom < firstWeighIn ? firstWeighIn : trendFrom, today)
+  const change = trendChange(trend)
 
   let tip = null
   if (week.loggedDays > 0 && status(week.balance, maint, goal).kind === 'big') {
@@ -107,38 +123,34 @@ export function TodayView() {
 
       <button className="linkcard" aria-label="Open trends" onClick={() => update((s) => ({ ...s, view: 'trends' }))}>
         <span className="row center wide">
-          <span className="h">Trend, {period.trendLabel}</span>
+          <span className="h">Weight, {trendLabel}</span>
           <span className="more">
             Details
             <ChevronIcon />
           </span>
         </span>
-        {numbers ? (
-          <span className="grid2 wide">
-            <span>
-              <span className="num block" style={{ fontSize: 22, color: 'var(--burn-ink)' }}>
-                {period.fatChange}
-              </span>
-              <span className="muted block" style={{ fontSize: 12 }}>
-                body fat
-              </span>
+        {change == null ? (
+          <p>
+            {weighIns.length
+              ? 'A few more weigh-ins over the coming days and your trend shows here.'
+              : 'Log your weight in the morning a few times a week to see your trend.'}
+          </p>
+        ) : numbers ? (
+          <span className="baseline">
+            <span className="num" style={{ fontSize: 22, color: 'var(--burn-ink)' }}>
+              {formatChange(change)}
             </span>
-            <span>
-              <span className="num block" style={{ fontSize: 22 }}>
-                {period.weightChange}
-              </span>
-              <span className="muted block" style={{ fontSize: 12 }}>
-                weight
-              </span>
+            <span className="muted" style={{ fontSize: 13 }}>
+              weight trend
             </span>
           </span>
         ) : (
           <span className="headline block" style={{ fontSize: 22 }}>
-            Body fat is trending down
+            Weight is {changeWords(change)}
           </span>
         )}
         <span className="block wide">
-          <Sparkline items={period.items} />
+          <TrendLine series={trend} />
         </span>
       </button>
 

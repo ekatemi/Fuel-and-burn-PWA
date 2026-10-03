@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { NavBar } from './components/NavBar'
 import { Toast } from './components/Toast'
+import { AddActivitySheet } from './sheets/AddActivitySheet'
 import { AddFoodSheet } from './sheets/AddFoodSheet'
 import { GoalSheet } from './sheets/GoalSheet'
 import { NewFoodSheet } from './sheets/NewFoodSheet'
@@ -22,6 +23,7 @@ const VIEWS: Record<View, () => React.JSX.Element> = {
 
 const SHEETS: Record<SheetName, () => React.JSX.Element> = {
   add: AddFoodSheet,
+  activity: AddActivitySheet,
   goal: GoalSheet,
   profile: ProfileSheet,
   newfav: NewFoodSheet,

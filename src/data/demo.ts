@@ -5,7 +5,6 @@ import type { AppState, Favorite, Food, Meal, Profile } from '../types'
 
 // Average daily balance for the seven weeks before the current one.
 export const OLD_WEEKS = [-310, -220, 150, -260, -40, -300, -280]
-export const BODYFAT = [27.8, 27.6, 27.7, 27.3, 27.2, 26.9, 26.7, 26.5]
 
 // Average daily balance for the three weeks, and the fifteen months, before the current one.
 export const SAMPLE_WEEKS = [-300, -280, -210]
@@ -91,7 +90,6 @@ function sampleMeals(today: string): Meal[] {
   )
 }
 
-// With the sample weight of 55.4 kg this profile gives a maintenance of 1,870 kcal.
 const SAMPLE_PROFILE: Profile = { sex: 'female', age: 37, heightCm: 160, activity: 'moderate' }
 
 /** A first launch: no profile yet, so the app opens on onboarding with an empty diary. */
@@ -104,15 +102,39 @@ export const freshState = (): AppState => ({
   targets: { protein: 115, fat: 60, carbs: 140, fiber: 22 },
   weight: 55.4,
   weighIns: {},
+  bodyFat: {},
   favs: defaultFavs(),
   dismissed: {},
   nextId: 200,
   meals: [],
+  activities: [],
 })
 
+// Eight weeks of morning weigh-ins on most days, drifting down about 0.1 kg a week, with
+// normal day-to-day noise and one odd reading.
+function sampleWeighIns(today: string): Record<string, number> {
+  const weighIns: Record<string, number> = {}
+  for (let daysAgo = 55; daysAgo >= 0; daysAgo--) {
+    if (daysAgo % 7 === 3 || daysAgo % 11 === 5) continue
+    const noise = Math.sin(daysAgo * 2.3) * 0.35 + Math.sin(daysAgo * 0.9) * 0.2
+    weighIns[addDays(today, -daysAgo)] = Math.round((56.2 - (55 - daysAgo) * 0.015 + noise) * 10) / 10
+  }
+  weighIns[addDays(today, -20)] += 2.4
+  return weighIns
+}
+
 /** A filled-in profile with a few days of diary, for looking around. */
-export const sampleState = (today: string): AppState => ({
-  ...freshState(),
-  profile: SAMPLE_PROFILE,
-  meals: sampleMeals(today),
-})
+export const sampleState = (today: string): AppState => {
+  const weighIns = sampleWeighIns(today)
+  return {
+    ...freshState(),
+    profile: SAMPLE_PROFILE,
+    meals: sampleMeals(today),
+    weighIns,
+    weight: weighIns[today],
+    // A body-fat reading roughly every ten days, from a home scale.
+    bodyFat: Object.fromEntries(
+      [27.8, 27.6, 27.7, 27.3, 27.0, 26.7].map((pct, i) => [addDays(today, -(50 - i * 10)), pct]),
+    ),
+  }
+}

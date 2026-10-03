@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { freshState } from '../data/demo'
 import { useToday } from '../lib/dates'
-import { maintenance, nowTime, toMeal } from '../lib/model'
+import { dayBurn, maintenance, nowTime, toMeal } from '../lib/model'
+import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
 import type { AppState, KnownItem, SheetName } from '../types'
 import { normalizeState } from './backup'
 
@@ -21,8 +22,18 @@ interface AppContextValue {
   update: (fn: (s: AppState) => AppState) => void
   /** The current local day, as YYYY-MM-DD. */
   today: string
-  /** Estimated kcal burned a day, from the profile and latest weight. */
+  /** All weigh-ins, oldest first, anomalies flagged. */
+  weighIns: WeighIn[]
+  /** Smoothed weight today, or null with no weigh-in in the last 7 days. */
+  trendWeight: number | null
+  /** Weight used in formulas: the trend weight, else the latest weigh-in. */
+  bodyWeight: number
+  /** Body fat % from logged readings, or null when none were logged. */
+  bodyFatPct: number | null
+  /** Estimated kcal burned a day, from the profile, body weight and body fat if logged. */
   maint: number
+  /** Burn for a day: maintenance adjusted for that day's logged activity. */
+  burnOn: (date: string) => number
   /** The day shown in the Fuel diary. */
   diaryDate: string
   setDiaryDate: (date: string) => void
@@ -88,11 +99,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return meals.map((m) => m.id)
     }
 
+    const weighIns = weighInList(state.weighIns)
+    const trendWeight = trendOn(weighIns, today)
+    const bodyWeight = trendWeight ?? state.weight
+    const bodyFatPct = currentBodyFat(state.bodyFat)
+    const maint = state.profile ? maintenance(state.profile, bodyWeight, bodyFatPct) : DEFAULT_MAINT
+
     return {
       state,
       update: setState,
       today,
-      maint: state.profile ? maintenance(state.profile, state.weight) : DEFAULT_MAINT,
+      weighIns,
+      trendWeight,
+      bodyWeight,
+      bodyFatPct,
+      maint,
+      burnOn: (date) => dayBurn(maint, state.meals, state.activities, date),
       diaryDate: pickedDate && pickedDate < today ? pickedDate : today,
       setDiaryDate: (date) => setPickedDate(date < today ? date : null),
       addMeals,
