@@ -1,34 +1,30 @@
-import { freshState } from '../data/demo'
 import { todayKey } from '../lib/dates'
-import type { AppState, Meal } from '../types'
 import { useApp } from './AppContext'
+import { migrate, SCHEMA_VERSION, type StoredDoc } from './schema'
 
 const APP_ID = 'fuel-and-burn'
 
+// Version 1 files held the bare state in `data`; version 2 holds the stored document
+// (state plus change log) in `doc`. Both go through migrate(), like saved data.
 interface BackupFile {
   app: typeof APP_ID
-  version: 1
+  version: 2
   exportedAt: string
-  data: AppState
+  doc: StoredDoc
 }
 
-/** Turns saved or imported data into a complete state, or null if it isn't ours. */
-export function normalizeState(saved: unknown): AppState | null {
-  const data = saved as Partial<AppState> | null
-  if (!data || typeof data !== 'object' || !Array.isArray(data.meals) || !Array.isArray(data.favs)) return null
-  // Meals saved before the diary was dated belong to the day they are first loaded on.
-  const today = todayKey()
-  const meals = data.meals.map((m: Meal) => (m.date ? m : { ...m, date: today }))
-  return { ...freshState(), ...data, meals }
-}
-
-function parseBackup(text: string): { state: AppState; exportedAt: string } | null {
+function parseBackup(text: string): { doc: StoredDoc; exportedAt: string } | { error: string } {
+  const notOurs = { error: 'That file isn’t a Fuel & Burn backup.' }
   try {
-    const file = JSON.parse(text) as Partial<BackupFile>
-    const state = file.app === APP_ID ? normalizeState(file.data) : null
-    return state && { state, exportedAt: file.exportedAt ?? '' }
+    const file = JSON.parse(text)
+    if (file?.app !== APP_ID) return notOurs
+    if (file.doc?.schemaVersion > SCHEMA_VERSION) {
+      return { error: 'This backup is from a newer version of Fuel & Burn. Update the app, then try again.' }
+    }
+    const doc = migrate(file.version === 1 ? file.data : file.doc)
+    return doc ? { doc, exportedAt: file.exportedAt ?? '' } : notOurs
   } catch {
-    return null
+    return notOurs
   }
 }
 
@@ -51,10 +47,10 @@ function pickFile(): Promise<File | null> {
 }
 
 export function useBackup() {
-  const { state, update, showToast } = useApp()
+  const { state, doc, replaceDoc, showToast } = useApp()
 
   const exportBackup = async () => {
-    const backup: BackupFile = { app: APP_ID, version: 1, exportedAt: new Date().toISOString(), data: state }
+    const backup: BackupFile = { app: APP_ID, version: 2, exportedAt: new Date().toISOString(), doc }
     const file = new File([JSON.stringify(backup, null, 2)], `fuel-and-burn-backup-${todayKey()}.json`, {
       type: 'application/json',
     })
@@ -81,12 +77,12 @@ export function useBackup() {
     const file = await pickFile()
     if (!file) return
     const backup = parseBackup(await file.text())
-    if (!backup) return showToast('That file isn’t a Fuel & Burn backup.')
+    if ('error' in backup) return showToast(backup.error)
 
     const saved = backup.exportedAt ? ` from ${new Date(backup.exportedAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}` : ''
     const hasData = state.profile !== null || state.meals.length > 0
     if (hasData && !window.confirm(`Replace everything on this device with the backup${saved}?`)) return
-    update(() => backup.state)
+    replaceDoc(backup.doc)
     showToast(`Backup${saved} restored`)
   }
 

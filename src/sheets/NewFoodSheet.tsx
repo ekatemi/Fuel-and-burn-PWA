@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Sheet } from '../components/Sheet'
+import { newId } from '../lib/ids'
 import { useApp } from '../state/AppContext'
 
 const EMPTY = { name: '', portion: '', kcal: '', protein: '', fat: '', carbs: '', fiber: '' }
@@ -36,11 +37,10 @@ export function NewFoodSheet() {
     if (!(kcal >= 0)) return setError('Add the calories for one portion.')
     update((s) => ({
       ...s,
-      nextId: s.nextId + 1,
       favs: [
         ...s.favs,
         {
-          id: s.nextId,
+          id: newId(),
           name,
           portion: form.portion.trim() || '1 portion',
           kcal: Math.round(kcal),

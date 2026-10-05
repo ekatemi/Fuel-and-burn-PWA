@@ -6,6 +6,7 @@
   --tip:#E7F0EC;--tip-ink:#16372B;--tip-btn:#C9DED5;
   --hero:#14161A;--hero-ink:#FFFFFF;--hero-muted:#C9CED6;
   --nav:#F4F6F8;--scrim:rgba(20,22,26,.45);--c-bmr:#1C3399;--c-act:#6F87EE;--c-sport:#0E8A74;
+  --goal-zone:rgba(14,138,116,.5);
   --display:'Unbounded Variable',system-ui,sans-serif;--body:'Onest Variable',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme:light dark;
 }
@@ -16,6 +17,7 @@
   --tip:#16271F;--tip-ink:#CFE6DA;--tip-btn:#24402F;
   --hero:#22262C;--hero-ink:#ECEEF1;--hero-muted:#A3A9B3;
   --nav:#15181C;--scrim:rgba(0,0,0,.6);--c-bmr:#A9B8FA;--c-act:#5A6FC9;--c-sport:#3CC3A6;
+  --goal-zone:rgba(60,195,166,.5);
 }}
 html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
 *,*::before,*::after{box-sizing:border-box}
@@ -198,10 +200,9 @@ textarea{width:100%;min-height:88px;border-radius:12px;border:1px solid var(--ou
 .onum{font-family:var(--display);font-weight:600;font-size:48px;letter-spacing:-.04em;line-height:1}
 .olegend{display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink2);padding-top:4px}
 .olegend>span{display:flex;align-items:center;gap:8px;white-space:nowrap}
-.sw-goal{width:22px;height:22px;border-radius:11px;background:repeating-linear-gradient(135deg,var(--c-sport) 0 2px,transparent 2px 5px);border:2px solid var(--c-sport)}
-.sw-maint{width:4px;height:22px;border-radius:2px;background:var(--burn);margin:0 9px}
+.sw-goal{width:22px;height:22px;border-radius:11px;background:var(--goal-zone);border:2px solid var(--c-sport)}
 .otrack{position:relative;height:30px;border-radius:15px;background:var(--track);margin-top:6px}
-.ogoal{position:absolute;top:0;bottom:0;pointer-events:none;background:repeating-linear-gradient(135deg,rgba(14,138,116,.55) 0 2px,rgba(14,138,116,.12) 2px 6px);border-left:2px solid var(--c-sport);border-right:2px solid var(--c-sport)}
+.ogoal{position:absolute;top:0;bottom:0;pointer-events:none;background:var(--goal-zone);border-left:2px solid var(--c-sport);border-right:2px solid var(--c-sport)}
 .ogoal.at-end{border-radius:0 15px 15px 0;border-right:0}
 .ofill{position:absolute;left:0;top:0;bottom:0;border-radius:15px;background:var(--fuel);opacity:.92;transition:width .7s cubic-bezier(.3,1.2,.5,1)}
 .omaint{position:absolute;top:-6px;bottom:-6px;width:4px;margin-left:-2px;border-radius:2px;background:var(--burn)}

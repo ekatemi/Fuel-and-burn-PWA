@@ -12,6 +12,7 @@ import {
   type Shortcut,
 } from '../lib/activityLabels'
 import { fmt, nowTime } from '../lib/model'
+import { newId } from '../lib/ids'
 import { useApp } from '../state/AppContext'
 
 const DEFAULT_SPEED: Record<'walk' | 'run', string> = { walk: '5', run: '9' }
@@ -73,10 +74,9 @@ export function AddActivitySheet() {
   const save = (e: FormEvent) => {
     e.preventDefault()
     if (typeof parsed === 'string' || !burn) return setError(typeof parsed === 'string' ? parsed : 'Set up your profile first.')
-    const id = state.nextId
+    const id = newId()
     update((s) => ({
       ...s,
-      nextId: s.nextId + 1,
       activities: [...s.activities, { id, date: today, time: nowTime(), input: parsed, burn }],
     }))
     closeSheet()

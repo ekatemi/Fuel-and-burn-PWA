@@ -1,6 +1,7 @@
 // Sample data carried over from the prototype. The diary itself is real and dated;
 // what is here stands in for a watch sync and for history older than the diary.
 import { addDays } from '../lib/dates'
+import { newId } from '../lib/ids'
 import type { AppState, Favorite, Food, Meal, Profile } from '../types'
 
 
@@ -27,9 +28,9 @@ export const HISTORY: (Food & { count: number })[] = [
 ]
 
 const defaultFavs = (): Favorite[] => [
-  { id: 101, name: 'Coffee with milk', portion: '1 cup', kcal: 60, protein: 3, carbs: 5, fat: 3, fiber: 0 },
-  { id: 102, name: 'Greek yogurt with chia', portion: '1 bowl', kcal: 220, protein: 17, carbs: 14, fat: 10, fiber: 6 },
-  { id: 103, name: 'Croissant', portion: '1 piece', kcal: 230, protein: 5, carbs: 26, fat: 12, fiber: 1 },
+  { id: newId(), name: 'Coffee with milk', portion: '1 cup', kcal: 60, protein: 3, carbs: 5, fat: 3, fiber: 0 },
+  { id: newId(), name: 'Greek yogurt with chia', portion: '1 bowl', kcal: 220, protein: 17, carbs: 14, fat: 10, fiber: 6 },
+  { id: newId(), name: 'Croissant', portion: '1 piece', kcal: 230, protein: 5, carbs: 26, fat: 12, fiber: 1 },
 ]
 
 type Entry = [time: string, name: string, portion: string, kcal: number, protein: number, carbs: number, fat: number, fiber: number]
@@ -71,10 +72,9 @@ const SAMPLE_DIARY: [daysAgo: number, entries: Entry[]][] = [
 ]
 
 function sampleMeals(today: string): Meal[] {
-  let id = 1
   return SAMPLE_DIARY.flatMap(([daysAgo, entries]) =>
     entries.map(([time, name, portion, kcal, protein, carbs, fat, fiber]) => ({
-      id: id++,
+      id: newId(),
       date: addDays(today, -daysAgo),
       time,
       name,
@@ -103,7 +103,6 @@ export const freshState = (): AppState => ({
   bodyFat: {},
   favs: defaultFavs(),
   dismissed: {},
-  nextId: 200,
   meals: [],
   activities: [],
   activityShortcuts: ['steps', 'walk', 'run', 'other'],

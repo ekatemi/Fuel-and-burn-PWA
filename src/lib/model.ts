@@ -321,7 +321,7 @@ export const isKnown = (item: DraftItem): item is KnownItem => !('unknown' in it
 export const fmtQty = (q: number) => (Number.isInteger(q) ? String(q) : q === 0.5 ? '½' : q.toFixed(1))
 export const kcalOf = (item: KnownItem) => Math.round((item.food.kcal * SIZE[item.size] * item.qty) / 5) * 5
 
-export function toMeal(item: KnownItem, id: number, date: string, time: string): Meal {
+export function toMeal(item: KnownItem, id: string, date: string, time: string): Meal {
   const scale = SIZE[item.size] * item.qty
   const { food } = item
   return {

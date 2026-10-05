@@ -13,5 +13,5 @@ npm run build:fuel  # build for https://mikhaylova.dev/fuel/ and pack it as fuel
 
 - `src/data/` holds the sample data and the food catalog; `src/lib/model.ts` holds the calculations.
 - The food diary is real and stored per day (`src/lib/dates.ts`). Daily burn is estimated from the onboarding profile (Mifflin–St Jeor × activity level). Body-composition trends and history older than the diary are still sample data.
-- State is saved in `localStorage` on the device. The menu can export it to a JSON backup file and restore from one (`src/state/backup.ts`).
+- Data is saved on the device in IndexedDB (`src/state/storage.ts`), with a versioned format and migrations (`src/state/schema.ts`). The menu can export it to a JSON backup file and restore from one (`src/state/backup.ts`).
 - Installing needs HTTPS (or `localhost`).

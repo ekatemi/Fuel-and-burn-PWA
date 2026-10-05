@@ -36,10 +36,6 @@ export function BalanceBar({ period, status }: { period: PeriodData; status: Sta
             <span className="sw-goal" aria-hidden="true" />
             {showNumbers ? `${fmt(goalLo)}–${fmt(goalHi)}` : 'your goal'}
           </span>
-          <span>
-            <span className="sw-maint" aria-hidden="true" />
-            {showNumbers ? `~${fmt(avgBurn)} burn` : 'maintenance'}
-          </span>
         </div>
       </div>
       <div

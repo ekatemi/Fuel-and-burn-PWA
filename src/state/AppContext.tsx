@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { freshState } from '../data/demo'
 import { useToday } from '../lib/dates'
+import { newId } from '../lib/ids'
 import { dayBurn, maintenance, nowTime, toMeal } from '../lib/model'
 import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
 import type { AppState, KnownItem, SheetName } from '../types'
-import { normalizeState } from './backup'
+import { freshDoc, type StoredDoc } from './schema'
+import { loadDoc, requestPersistence, saveDoc } from './storage'
+import { emptySync, stamp } from './sync'
 
-const STORAGE_KEY = 'fuel-and-burn-v1'
 const TOAST_MS = 4500
 // Only used before a profile exists, when no view that shows it is reachable.
 const DEFAULT_MAINT = 2000
@@ -19,7 +21,11 @@ export interface ToastData {
 
 interface AppContextValue {
   state: AppState
+  /** The stored document: state plus its change log. Used for backups. */
+  doc: StoredDoc
   update: (fn: (s: AppState) => AppState) => void
+  /** Replaces everything, e.g. from a backup. */
+  replaceDoc: (doc: StoredDoc) => void
   /** The current local day, as YYYY-MM-DD. */
   today: string
   /** All weigh-ins, oldest first, anomalies flagged. */
@@ -38,8 +44,8 @@ interface AppContextValue {
   diaryDate: string
   setDiaryDate: (date: string) => void
   /** Logs the items as meals on the given day at the current time and returns their ids. */
-  addMeals: (items: KnownItem[], date: string) => number[]
-  removeMeals: (ids: number[]) => void
+  addMeals: (items: KnownItem[], date: string) => string[]
+  removeMeals: (ids: string[]) => void
   resetData: () => void
   sheet: SheetName | null
   openSheet: (name: SheetName) => void
@@ -51,17 +57,9 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-function loadState(): AppState {
-  try {
-    return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')) ?? freshState()
-  } catch {
-    // Unreadable or blocked storage: start from scratch.
-    return freshState()
-  }
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState(loadState)
+  // null while the saved data loads (IndexedDB is asynchronous).
+  const [doc, setDoc] = useState<StoredDoc | null>(null)
   const [sheet, setSheet] = useState<SheetName | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const today = useToday()
@@ -70,12 +68,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toastTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // Storage full or blocked: the app keeps working for this session.
+    let cancelled = false
+    loadDoc().then((saved) => {
+      if (cancelled) return
+      setDoc(saved)
+      requestPersistence()
+    })
+    return () => {
+      cancelled = true
     }
-  }, [state])
+  }, [])
+
+  useEffect(() => {
+    // Save every change. The first save also stores data that was just migrated or carried over
+    // from localStorage, so it is in IndexedDB in the current format from then on.
+    if (doc) saveDoc(doc)
+  }, [doc])
 
   const hideToast = useCallback(() => {
     window.clearTimeout(toastTimer.current)
@@ -88,14 +96,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS)
   }, [])
 
-  const value = useMemo<AppContextValue>(() => {
-    const removeMeals = (ids: number[]) =>
-      setState((s) => ({ ...s, meals: s.meals.filter((m) => !ids.includes(m.id)) }))
+  const update = useCallback((fn: (s: AppState) => AppState) => {
+    setDoc((d) => {
+      if (!d) return d
+      const next = fn(d.state)
+      return next === d.state ? d : { ...d, state: next, sync: stamp(d.state, next, d.sync) }
+    })
+  }, [])
+
+  const value = useMemo<AppContextValue | null>(() => {
+    if (!doc) return null
+    const { state } = doc
+
+    const removeMeals = (ids: string[]) => update((s) => ({ ...s, meals: s.meals.filter((m) => !ids.includes(m.id)) }))
 
     const addMeals = (items: KnownItem[], date: string) => {
       const time = nowTime()
-      const meals = items.map((item, i) => toMeal(item, state.nextId + i, date, time))
-      setState((s) => ({ ...s, meals: [...s.meals, ...meals], nextId: s.nextId + meals.length }))
+      const meals = items.map((item) => toMeal(item, newId(), date, time))
+      update((s) => ({ ...s, meals: [...s.meals, ...meals] }))
       return meals.map((m) => m.id)
     }
 
@@ -107,7 +125,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return {
       state,
-      update: setState,
+      doc,
+      update,
+      replaceDoc: setDoc,
       today,
       weighIns,
       trendWeight,
@@ -119,7 +139,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDiaryDate: (date) => setPickedDate(date < today ? date : null),
       addMeals,
       removeMeals,
-      resetData: () => setState(freshState()),
+      // Starting over clears the change log too: there is nothing left to sync.
+      resetData: () => setDoc({ ...freshDoc(), state: freshState(), sync: emptySync() }),
       sheet,
       openSheet: setSheet,
       closeSheet: () => setSheet(null),
@@ -127,8 +148,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       showToast,
       hideToast,
     }
-  }, [state, sheet, toast, today, pickedDate, showToast, hideToast])
+  }, [doc, update, sheet, toast, today, pickedDate, showToast, hideToast])
 
+  // A blank screen in the app's background colour for the moment the data loads.
+  if (!value) return null
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 

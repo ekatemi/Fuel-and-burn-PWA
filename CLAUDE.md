@@ -34,10 +34,10 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 3. One horizontal bar from 0 to the scale end:
    - scale end = max(maintenance, top of goal range): maintenance for Lose fat, goal max for Build muscle;
    - orange fill = average kcal eaten per day in the period;
-   - hatched green zone = goal intake range;
+   - solid green zone = goal intake range (colour, no hatching);
    - blue tick = maintenance when it is not the scale end;
    - if intake exceeds the scale end, fill to the end and show "+n";
-   - legend on the right: goal range and "~maintenance burn". Labels "0" and the end value under the bar.
+   - legend on the right: goal range only. Labels "0" and the end value under the bar.
 4. Line under the bar: "Deficit 247 kcal a day" plus a status pill (On target / A bit under your goal / Lighter deficit than planned / Above your goal / More than planned).
 5. Trend card for the same period: body fat change, weight change, trend line. Opens Trends.
 6. One tip at most. Buttons: Add food, Log weight.
@@ -99,6 +99,7 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 ## Data and privacy
 
 - **Local-first**: all user data stays on the device. Prefer IndexedDB over localStorage; call `navigator.storage.persist()`.
+- **Sync-ready storage** (`src/state/`): `storage.ts` is the only place that reads or writes saved data (IndexedDB, localStorage fallback). `schema.ts` holds `SCHEMA_VERSION` and the migrations; any change to the stored format bumps the version and adds a step. Records have random UUIDs; `sync.ts` keeps a change log (last change per record and setting, deletions) for a future sync or merging restore.
 - Provide **export and import** (JSON), since browser data can be cleared.
 - Weight, body fat, food and activity are health data under GDPR. Requires explicit, separate consent at onboarding (unticked by default), 18+ only, "delete all my data" in settings.
 - Privacy policy draft exists; keep it in sync (no Health Connect while it is a PWA; mention food photos and the AI provider).

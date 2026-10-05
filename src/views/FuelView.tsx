@@ -5,6 +5,7 @@ import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
 import { eaten, fmt, mealsOn } from '../lib/model'
+import { newId } from '../lib/ids'
 import { useApp } from '../state/AppContext'
 import type { Food, Meal } from '../types'
 
@@ -33,7 +34,7 @@ export function FuelView() {
       showToast('Removed from My foods')
     } else {
       const { id: _id, date: _date, time: _time, ...food } = meal
-      update((s) => ({ ...s, favs: [...s.favs, { ...food, id: s.nextId }], nextId: s.nextId + 1 }))
+      update((s) => ({ ...s, favs: [...s.favs, { ...food, id: newId() }] }))
       showToast('Saved to My foods')
     }
   }

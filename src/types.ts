@@ -16,18 +16,18 @@ export interface CatalogFood extends Food {
 }
 
 export interface Favorite extends Food {
-  id: number
+  id: string
 }
 
 export interface Meal extends Food {
-  id: number
+  id: string
   /** Local day, as YYYY-MM-DD. */
   date: string
   time: string
 }
 
 export interface ActivityEntry {
-  id: number
+  id: string
   /** Local day, as YYYY-MM-DD. */
   date: string
   time: string
@@ -91,5 +91,4 @@ export interface AppState {
   activityShortcuts: Shortcut[]
   favs: Favorite[]
   dismissed: Record<string, boolean>
-  nextId: number
 }
