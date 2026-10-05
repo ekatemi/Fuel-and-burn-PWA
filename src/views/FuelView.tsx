@@ -1,4 +1,4 @@
-import { BackIcon, PlusIcon, StarIcon, TrashIcon } from '../components/Icons'
+import { BackIcon, PlusIcon, ShareIcon, StarIcon, TrashIcon } from '../components/Icons'
 import { MacroBlock } from '../components/MacroBlock'
 import { QuickChips } from '../components/QuickChips'
 import { TipBox } from '../components/TipBox'
@@ -85,11 +85,10 @@ export function FuelView() {
       <div className="col" style={{ gap: 8 }}>
         <div className="row">
           <span className="h">{isToday ? 'Logged today' : 'Logged'}</span>
-          {numbers && (
-            <span className="muted" style={{ fontSize: 13 }}>
-              {fmt(total)} kcal
-            </span>
-          )}
+          <button className="tbtn link with-icon" disabled={!meals.length} onClick={() => openSheet('share')}>
+            <ShareIcon />
+            Share day
+          </button>
         </div>
         {sorted.length ? (
           <div className="list">

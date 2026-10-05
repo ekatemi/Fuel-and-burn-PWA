@@ -57,7 +57,7 @@ export interface Profile {
 
 export type Period = 'week' | 'month' | 'year' | 'all'
 export type View = 'today' | 'fuel' | 'burn' | 'trends'
-export type SheetName = 'add' | 'activity' | 'goal' | 'profile' | 'newfav' | 'favs' | 'targets' | 'weight' | 'snacks'
+export type SheetName = 'add' | 'share' | 'activity' | 'goal' | 'profile' | 'newfav' | 'favs' | 'targets' | 'weight' | 'snacks'
 
 export type PortionSize = 'S' | 'M' | 'L'
 export interface KnownItem {

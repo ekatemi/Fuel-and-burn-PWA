@@ -69,6 +69,9 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
           <button role="menuitem" onClick={pick(() => openSheet('goal'))}>
             Change goal
           </button>
+          <button role="menuitem" onClick={pick(() => openSheet('share'))}>
+            Share your day
+          </button>
           <button role="menuitem" onClick={pick(() => openSheet('profile'))}>
             Edit profile
           </button>

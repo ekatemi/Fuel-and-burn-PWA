@@ -5,6 +5,7 @@ import { AddActivitySheet } from './sheets/AddActivitySheet'
 import { AddFoodSheet } from './sheets/AddFoodSheet'
 import { GoalSheet } from './sheets/GoalSheet'
 import { NewFoodSheet } from './sheets/NewFoodSheet'
+import { ShareSheet } from './sheets/ShareSheet'
 import { FavsSheet, ProfileSheet, SnacksSheet, TargetsSheet, WeightSheet } from './sheets/SmallSheets'
 import { useApp } from './state/AppContext'
 import type { SheetName, View } from './types'
@@ -25,6 +26,7 @@ const SHEETS: Record<SheetName, () => React.JSX.Element> = {
   add: AddFoodSheet,
   activity: AddActivitySheet,
   goal: GoalSheet,
+  share: ShareSheet,
   profile: ProfileSheet,
   newfav: NewFoodSheet,
   favs: FavsSheet,

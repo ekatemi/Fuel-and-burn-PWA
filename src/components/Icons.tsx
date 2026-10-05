@@ -87,6 +87,15 @@ export const FuelIcon = ({ size = 22 }: IconProps) => (
   </Stroke>
 )
 
+export const ShareIcon = ({ size = 20 }: IconProps) => (
+  <Stroke size={size} width={1.9}>
+    <circle cx="18" cy="5" r="2.5" />
+    <circle cx="6" cy="12" r="2.5" />
+    <circle cx="18" cy="19" r="2.5" />
+    <path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" />
+  </Stroke>
+)
+
 export const BurnIcon = ({ size = 22 }: IconProps) => (
   <Stroke size={size} width={1.9}>
     <path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z" />
