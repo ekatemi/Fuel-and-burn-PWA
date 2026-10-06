@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "build:fuel": "tsc --noEmit && vite build --base=/fuel/ && tar -czf fuel.tgz -C dist .",
     "preview": "vite preview",
+    "test": "vitest run",
     "icons": "pwa-assets-generator --preset minimal-2023 public/icon.svg"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.11"
   }
 }

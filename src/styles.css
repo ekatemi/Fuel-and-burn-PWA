@@ -147,6 +147,11 @@ details p{padding-bottom:16px;font-size:13px}
 .sheet h2{margin:0;font-family:var(--display);font-weight:600;font-size:22px}
 textarea{width:100%;min-height:88px;border-radius:12px;border:1px solid var(--outline);background:var(--surface);color:var(--ink);font-family:inherit;font-size:16px;padding:12px 14px;resize:vertical}
 .parsed{display:flex;flex-direction:column;gap:8px}
+.inset-list{background:var(--surface);padding:0 8px 0 12px}
+.inset-list .item{min-height:52px}
+.amount{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.amount input{width:110px;height:40px;border-radius:12px;border:1px solid var(--outline);background:var(--surface);color:var(--ink);font-family:inherit;font-size:16px;padding:0 12px}
+.search{width:100%;height:48px;border-radius:12px;border:1px solid var(--outline);background:var(--surface);color:var(--ink);font-family:inherit;font-size:16px;padding:0 14px}
 .pitem{background:var(--surface2);border-radius:16px;padding:12px 8px 12px 14px;display:flex;flex-direction:column;gap:8px}
 .sizes{display:inline-flex;align-self:flex-start;border:1px solid var(--outline);border-radius:18px;overflow:hidden}
 .sizes button{height:36px;min-width:44px;padding:0 10px;border:0;background:transparent;font-size:13px}

@@ -13,6 +13,9 @@ export interface Food {
 
 export interface CatalogFood extends Food {
   keywords: string[]
+  /** Weight of one portion, in g, or ml for drinks. */
+  grams: number
+  unit: 'g' | 'ml'
 }
 
 export interface Favorite extends Food {
@@ -62,12 +65,21 @@ export type SheetName = 'add' | 'share' | 'activity' | 'goal' | 'profile' | 'new
 export type PortionSize = 'S' | 'M' | 'L'
 export interface KnownItem {
   food: Food
+  /** Number of catalog portions (fractional when an amount is given). */
   qty: number
   size: PortionSize
+  /** Set when the text gave a weight or volume ("200 g"); then size doesn't apply. */
+  amount?: { value: number; unit: 'g' | 'ml' }
+  /** Grams (or ml) in one unit of qty, so an amount can be edited. */
+  portionGrams?: number
 }
 export interface UnknownItem {
   unknown: true
   raw: string
+  /** The words left once numbers, units and sizes are removed: what to search the database for. */
+  query: string
+  /** Grams or ml, when the text gave them. */
+  amount?: number
 }
 export type DraftItem = KnownItem | UnknownItem
 

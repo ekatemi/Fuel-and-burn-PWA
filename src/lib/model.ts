@@ -1,5 +1,4 @@
 import { HISTORY, SAMPLE_MONTHS, SAMPLE_WEEKS } from '../data/demo'
-import { FOODS } from '../data/foods'
 import { activityAdjustment, restingKcalPerDay } from './activity'
 import { addDays, monthDay, monthShort, monthStart, monthYear, weekdayShort, weekStart } from './dates'
 import type {
@@ -314,12 +313,14 @@ export function periodData(
 
 export const SIZE: Record<PortionSize, number> = { S: 0.7, M: 1, L: 1.4 }
 export const SIZE_NAMES: Record<PortionSize, string> = { S: 'Small', M: 'Medium', L: 'Large' }
-const WORD_NUMBERS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5 }
 
 export const isKnown = (item: DraftItem): item is KnownItem => !('unknown' in item)
 
 export const fmtQty = (q: number) => (Number.isInteger(q) ? String(q) : q === 0.5 ? '½' : q.toFixed(1))
+export const fmtAmount = ({ value, unit }: { value: number; unit: string }) => `${Math.round(value)} ${unit}`
 export const kcalOf = (item: KnownItem) => Math.round((item.food.kcal * SIZE[item.size] * item.qty) / 5) * 5
+/** One item above this is almost certainly a typo in the amount. */
+export const SUSPICIOUS_KCAL = 2000
 
 export function toMeal(item: KnownItem, id: string, date: string, time: string): Meal {
   const scale = SIZE[item.size] * item.qty
@@ -328,48 +329,14 @@ export function toMeal(item: KnownItem, id: string, date: string, time: string):
     id,
     date,
     time,
-    name: (item.qty !== 1 ? fmtQty(item.qty) + ' × ' : '') + food.name,
-    portion: { S: 'small, ', M: '', L: 'large, ' }[item.size] + food.portion,
+    name: (item.qty !== 1 && !item.amount ? fmtQty(item.qty) + ' × ' : '') + food.name,
+    portion: item.amount ? fmtAmount(item.amount) : { S: 'small, ', M: '', L: 'large, ' }[item.size] + food.portion,
     kcal: kcalOf(item),
     protein: Math.round(food.protein * scale),
     carbs: Math.round(food.carbs * scale),
     fat: Math.round(food.fat * scale),
     fiber: Math.round(food.fiber * scale),
   }
-}
-
-/** A keyword parser standing in for real food recognition. */
-export function parseFoodText(text: string): DraftItem[] {
-  const parts = text
-    .toLowerCase()
-    .split(/,|;|\+|\n|\band\b|\bwith\b|\by\b|\bcon\b/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const out: DraftItem[] = []
-  for (const part of parts) {
-    let qty = 1
-    const num = part.match(/^(\d+(?:[.,]\d+)?)/)
-    if (num) qty = parseFloat(num[1].replace(',', '.'))
-    else qty = WORD_NUMBERS[part.split(/\s+/)[0]] ?? 1
-    if (/\bhalf\b|\bmedia\b|½/.test(part)) qty *= 0.5
-
-    let size: PortionSize = 'M'
-    if (/\b(small|little|mini|pequeñ[oa])\b/.test(part)) size = 'S'
-    else if (/\b(large|big|huge|double|grande)\b/.test(part)) size = 'L'
-
-    let rest = part
-    let found = false
-    for (const food of FOODS) {
-      const keyword = food.keywords.find((k) => rest.includes(k))
-      if (keyword) {
-        found = true
-        out.push({ food, qty, size })
-        rest = rest.replace(keyword, ' ')
-      }
-    }
-    if (!found) out.push({ unknown: true, raw: part })
-  }
-  return out
 }
 
 export interface QuickEntry {

@@ -94,6 +94,7 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - Send only the food text or photo. No name, weight or other health data.
 - Photos: resize client-side to ~768 px before upload. Do not store them on the server. Keep them in the app (IndexedDB) as a photo food diary; saving to the gallery only via the share sheet.
 - Build the app so it still works without AI (search, My foods, Quick add).
+- Food database: ANSES-CIQUAL 2020 (EU, open licence, attribution shown in Add food), bundled and searched on the device (`src/lib/foodDb.ts`, data built by `scripts/build_ciqual.py`). English names now; the format keeps names per language for Spanish and Russian. Packaged products and barcodes: Open Food Facts (planned).
 - Wrap the provider in one function (`parseFood(text | image) → items[]`) so switching providers is a one-file change.
 
 ## Data and privacy
