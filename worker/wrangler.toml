@@ -17,10 +17,10 @@ name = "BURST"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
-# Daily counters. The id is filled in after `wrangler kv namespace create USAGE`.
+# Daily counters (created with `wrangler kv namespace create USAGE`).
 [[kv_namespaces]]
 binding = "USAGE"
-id = "REPLACE_WITH_KV_ID"
+id = "3083194967114105800138b053af0709"
 
 # The key is a secret, not a var: `npx wrangler secret put OPENAI_API_KEY`.
 # For `npm run dev`, put OPENAI_API_KEY=... in .dev.vars (never committed).
