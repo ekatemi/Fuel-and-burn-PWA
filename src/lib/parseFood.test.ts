@@ -64,7 +64,7 @@ describe('quantities', () => {
   it('scales calories and macros by weight', () => {
     const chicken = only('200 g chicken')
     expect(kcalOf(chicken)).toBe(335) // 250 kcal per 150 g
-    const meal = toMeal(chicken, 'id', '2026-10-06', '12:00')
+    const meal = toMeal(chicken, 'id', '2026-10-06', '12:00', 'lunch')
     expect(meal.name).toBe('Chicken breast')
     expect(meal.portion).toBe('200 g')
     expect(meal.protein).toBe(61)

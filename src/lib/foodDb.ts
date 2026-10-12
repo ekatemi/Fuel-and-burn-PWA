@@ -57,13 +57,15 @@ export function stem(word: string): string {
 // Words that make an entry less likely to be what someone means by a plain name.
 const SPECIFIC = new Set(['prepacked', 'organic', 'label', 'rouge', 'var', 'canned', 'frozen', 'powder', 'dried', 'dehydrated', 'enriched', 'reduced', 'diet', 'light'])
 // Products made from a food: "chicken" means the meat, not "Chicken fat", unless the query says so.
-const DERIVED = new Set(['fat', 'oil', 'nectar', 'juice', 'flour', 'starch', 'bran', 'sauce', 'cake', 'compote', 'turnover', 'tart', 'pie', 'syrup', 'jam', 'chip', 'crisp', 'spread', 'soup', 'biscuit', 'drink', 'flavoured', 'flavored'])
+const DERIVED = new Set(['fat', 'oil', 'nectar', 'juice', 'flour', 'starch', 'bran', 'sauce', 'cake', 'compote', 'turnover', 'tart', 'pie', 'syrup', 'jam', 'chip', 'crisp', 'spread', 'soup', 'biscuit', 'drink', 'flavoured', 'flavored', 'crepe', 'filled', 'sandwich'])
 // Plain forms of a food, a small nudge up.
 const PLAIN = new Set(['raw', 'cooked', 'pulp', 'meat', 'whole', 'average', 'boiled', 'fresh', 'plain'])
 
 interface Indexed {
   food: DbFood
   words: string[]
+  /** Words of the name before the first comma: the food itself ("Butter" in "Butter, 82% fat"). */
+  head: string[]
   specific: number
 }
 
@@ -78,7 +80,9 @@ function score(entry: Indexed, query: string[]): number | null {
   }
   const derived = entry.words.filter((w) => DERIVED.has(w) && !query.includes(w)).length
   const plain = Math.min(2, entry.words.filter((w) => PLAIN.has(w)).length)
-  return total - 0.15 * entry.words.length - entry.specific - 3 * derived + plain
+  // The query names this food exactly: "butter" means "Butter, …", not "Butter bean".
+  const named = entry.head.every((w) => query.includes(w)) ? 5 : 0
+  return total - 0.15 * entry.words.length - entry.specific - 3 * derived + plain + named
 }
 
 function build(raw: RawDb): FoodDb {
@@ -97,8 +101,9 @@ function build(raw: RawDb): FoodDb {
     let list = index.get(lang)
     if (!list) {
       list = foods.map((food) => {
-        const w = words(nameOf(food, lang)).map(stem)
-        return { food, words: w, specific: w.filter((x) => SPECIFIC.has(x)).length }
+        const name = nameOf(food, lang)
+        const w = words(name).map(stem)
+        return { food, words: w, head: words(name.split(',')[0]).map(stem), specific: w.filter((x) => SPECIFIC.has(x)).length }
       })
       index.set(lang, list)
     }

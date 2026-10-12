@@ -4,7 +4,7 @@ import { useToday } from '../lib/dates'
 import { newId } from '../lib/ids'
 import { dayBurn, maintenance, nowTime, toMeal } from '../lib/model'
 import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
-import type { AppState, KnownItem, SheetName } from '../types'
+import type { AppState, KnownItem, MealSlot, SheetName } from '../types'
 import { freshDoc, type StoredDoc } from './schema'
 import { loadDoc, requestPersistence, saveDoc } from './storage'
 import { emptySync, stamp } from './sync'
@@ -44,11 +44,15 @@ interface AppContextValue {
   diaryDate: string
   setDiaryDate: (date: string) => void
   /** Logs the items as meals on the given day at the current time and returns their ids. */
-  addMeals: (items: KnownItem[], date: string) => string[]
+  addMeals: (items: KnownItem[], date: string, slot: MealSlot) => string[]
   removeMeals: (ids: string[]) => void
   resetData: () => void
   sheet: SheetName | null
   openSheet: (name: SheetName) => void
+  /** Opens Add food; with a slot when opened from that meal's section of the diary. */
+  openAddFood: (slot?: MealSlot) => void
+  /** The meal Add food was opened for, if any. */
+  addSlot: MealSlot | null
   closeSheet: () => void
   toast: ToastData | null
   showToast: (message: string, undo?: () => void) => void
@@ -61,6 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // null while the saved data loads (IndexedDB is asynchronous).
   const [doc, setDoc] = useState<StoredDoc | null>(null)
   const [sheet, setSheet] = useState<SheetName | null>(null)
+  const [addSlot, setAddSlot] = useState<MealSlot | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const today = useToday()
   // null follows today, so the diary rolls over at midnight.
@@ -110,9 +115,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const removeMeals = (ids: string[]) => update((s) => ({ ...s, meals: s.meals.filter((m) => !ids.includes(m.id)) }))
 
-    const addMeals = (items: KnownItem[], date: string) => {
+    const addMeals = (items: KnownItem[], date: string, slot: MealSlot) => {
       const time = nowTime()
-      const meals = items.map((item) => toMeal(item, newId(), date, time))
+      const meals = items.map((item) => toMeal(item, newId(), date, time, slot))
       update((s) => ({ ...s, meals: [...s.meals, ...meals] }))
       return meals.map((m) => m.id)
     }
@@ -142,13 +147,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Starting over clears the change log too: there is nothing left to sync.
       resetData: () => setDoc({ ...freshDoc(), state: freshState(), sync: emptySync() }),
       sheet,
-      openSheet: setSheet,
+      openSheet: (name) => {
+        setAddSlot(null)
+        setSheet(name)
+      },
+      openAddFood: (slot) => {
+        setAddSlot(slot ?? null)
+        setSheet('add')
+      },
+      addSlot,
       closeSheet: () => setSheet(null),
       toast,
       showToast,
       hideToast,
     }
-  }, [doc, update, sheet, toast, today, pickedDate, showToast, hideToast])
+  }, [doc, update, sheet, addSlot, toast, today, pickedDate, showToast, hideToast])
 
   // A blank screen in the app's background colour for the moment the data loads.
   if (!value) return null

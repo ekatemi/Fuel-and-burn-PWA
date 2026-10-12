@@ -1,0 +1,171 @@
+// AI proxy for Fuel & Burn. The app posts the words it couldn't recognise; OpenAI turns them
+// into foods with an English search term and a weight. Calories are not asked for: the app looks
+// each food up in its own database (CIQUAL), so numbers stay consistent.
+// Nothing is stored except a daily request count per hashed IP address.
+
+export interface Env {
+  OPENAI_API_KEY: string
+  ALLOWED_ORIGINS: string
+  MODEL: string
+  DAILY_LIMIT: string
+  BURST: { limit: (options: { key: string }) => Promise<{ success: boolean }> }
+  USAGE: KVNamespace
+}
+
+export interface ParsedFood {
+  /** The words of the input this item came from, unchanged. */
+  raw: string
+  /** Short English name, for display. */
+  name: string
+  /** Plain English words to search the food database for. */
+  query: string
+  /** One generic word, for when query finds nothing. */
+  fallback: string
+  /** The model's rough kcal per 100 g, only to reject a wrong database match. */
+  kcal_per_100g: number
+  /** Total grams (ml for drinks): given in the text or estimated. */
+  grams: number
+  /** Pieces or portions, when the text says how many. */
+  count: number | null
+}
+
+const MAX_TEXT = 500
+const DAY_SECONDS = 24 * 60 * 60
+
+const INSTRUCTIONS = `You turn a description of what someone ate into a list of foods, to be looked up in the
+ANSES-CIQUAL food composition table (English names). The text may be in English, Spanish or Russian, or a mix.
+
+Splitting:
+- Each food or drink is its own item: "chicken and rice" is two items.
+- Anything added that has calories is its own item with its own grams: butter, oil, sauce, mayonnaise, sour cream, sugar, honey, dressing. "Toast with butter" is toast plus butter.
+- Keep a dish whole if a French generic food table likely has it (pizza, lasagne, quiche, paella, omelette, hamburger).
+  Split a regional dish it likely lacks into its main ingredients (borscht: beetroot, cabbage, potato, beef, sour cream; patatas bravas: fried potato, tomato sauce).
+
+For each item return:
+- raw: the words of the input for this item, unchanged (repeat them for each ingredient of a split dish).
+- name: a short English name, e.g. "Fried eggs".
+- query: 1 to 3 English words as CIQUAL names it, main food first, then form or state.
+  Always say "cooked" or "raw" for foods that change weight in cooking (rice, pasta, meat, fish, legumes, potatoes).
+  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "cream" (also for sour cream, smetana, crème fraîche).
+- fallback: one word of your query, its main food, used if the whole query finds nothing ("chicken" for "chicken breast cooked").
+- kcal_per_100g: your rough estimate of kcal per 100 g of this food as eaten (cooked rice about 130, coffee with milk about 30).
+- grams: the total amount in grams (ml for drinks). Use the amount in the text; otherwise estimate a typical portion, times the count.
+- count: the number of pieces or portions if the text gives one, else null.
+If the text is not about food, return an empty list.`
+
+const SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['items'],
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['raw', 'name', 'query', 'fallback', 'kcal_per_100g', 'grams', 'count'],
+        properties: {
+          raw: { type: 'string' },
+          name: { type: 'string' },
+          query: { type: 'string' },
+          fallback: { type: 'string' },
+          kcal_per_100g: { type: 'number' },
+          grams: { type: 'number' },
+          count: { type: ['number', 'null'] },
+        },
+      },
+    },
+  },
+}
+
+function json(body: unknown, status: number, origin: string | null): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...cors(origin) },
+  })
+}
+
+function cors(origin: string | null): Record<string, string> {
+  if (!origin) return {}
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  }
+}
+
+/** The IP address, hashed, so the usage counters hold no personal data. */
+async function clientKey(request: Request): Promise<string> {
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'local'
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('fuel-ai:' + ip))
+  return [...new Uint8Array(hash).slice(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** Counts the request against today's limit; false once the limit is reached. */
+async function withinDailyLimit(env: Env, key: string): Promise<boolean> {
+  const counter = `${new Date().toISOString().slice(0, 10)}:${key}`
+  const used = Number(await env.USAGE.get(counter)) || 0
+  if (used >= Number(env.DAILY_LIMIT)) return false
+  await env.USAGE.put(counter, String(used + 1), { expirationTtl: 2 * DAY_SECONDS })
+  return true
+}
+
+async function parseFood(env: Env, text: string): Promise<ParsedFood[]> {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: env.MODEL,
+      instructions: INSTRUCTIONS,
+      input: text,
+      reasoning: { effort: 'none' },
+      text: { format: { type: 'json_schema', name: 'foods', strict: true, schema: SCHEMA } },
+      store: false,
+    }),
+  })
+  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`)
+  const data = (await response.json()) as { output?: { type: string; content?: { type: string; text?: string }[] }[] }
+  const message = data.output?.find((o) => o.type === 'message')
+  const out = message?.content?.find((c) => c.type === 'output_text')?.text
+  if (!out) throw new Error('OpenAI returned no text')
+  return (JSON.parse(out) as { items: ParsedFood[] }).items
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get('Origin')
+    // Any local dev server is fine: the limits, not the origin, are what protect the key.
+    const local = origin != null && /^http:\/\/localhost:\d+$/.test(origin)
+    const allowed = origin && (local || env.ALLOWED_ORIGINS.split(',').includes(origin)) ? origin : null
+
+    if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors(allowed) })
+    if (!allowed) return json({ error: 'forbidden' }, 403, null)
+    if (request.method !== 'POST' || new URL(request.url).pathname !== '/parse-food') {
+      return json({ error: 'not_found' }, 404, allowed)
+    }
+
+    let text: unknown
+    try {
+      text = ((await request.json()) as { text?: unknown }).text
+    } catch {
+      text = null
+    }
+    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT) {
+      return json({ error: 'bad_request' }, 400, allowed)
+    }
+
+    const key = await clientKey(request)
+    if (!(await env.BURST.limit({ key })).success || !(await withinDailyLimit(env, key))) {
+      return json({ error: 'rate_limited' }, 429, allowed)
+    }
+
+    try {
+      return json({ items: await parseFood(env, text.trim()) }, 200, allowed)
+    } catch (e) {
+      console.error(e)
+      return json({ error: 'upstream' }, 502, allowed)
+    }
+  },
+}

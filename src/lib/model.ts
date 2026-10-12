@@ -11,6 +11,7 @@ import type {
   KnownItem,
   MacroKey,
   Meal,
+  MealSlot,
   Pace,
   Period,
   PortionSize,
@@ -322,13 +323,61 @@ export const kcalOf = (item: KnownItem) => Math.round((item.food.kcal * SIZE[ite
 /** One item above this is almost certainly a typo in the amount. */
 export const SUSPICIOUS_KCAL = 2000
 
-export function toMeal(item: KnownItem, id: string, date: string, time: string): Meal {
+export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'snack', 'lunch', 'dinner']
+export const SLOT_NAMES: Record<MealSlot, string> = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }
+
+/** The usual meal at a time of day (HH:MM), used as the default and for entries from before slots. */
+export function slotForTime(time: string): MealSlot {
+  if (time < '05:00') return 'snack'
+  if (time < '11:00') return 'breakfast'
+  if (time < '12:30') return 'snack'
+  if (time < '16:00') return 'lunch'
+  if (time < '19:00') return 'snack'
+  return 'dinner'
+}
+
+export interface MealSection {
+  slot: MealSlot
+  /** Logged food, earliest first. Empty for a main meal not logged yet. */
+  meals: Meal[]
+}
+
+const MAIN_MEALS: MealSlot[] = ['breakfast', 'lunch', 'dinner']
+
+/** A day's food as the diary shows it: breakfast, lunch and dinner always, in that order, and snacks
+ *  where they happened in time, after the last main meal started before them. With no snacks yet,
+ *  an empty Snack section comes last, so there is always somewhere to add one. */
+export function mealSections(meals: Meal[]): MealSection[] {
+  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
+  const main = MAIN_MEALS.map((slot) => ({ slot, meals: sorted.filter((m) => m.slot === slot) }))
+  // Snacks before any main meal come first; after that, each goes after the meal begun before it.
+  const snacksAfter: Meal[][] = [[], [], [], []]
+  for (const snack of sorted.filter((m) => m.slot === 'snack')) {
+    let at = 0
+    main.forEach((section, i) => {
+      if (section.meals.length && section.meals[0].time <= snack.time) at = i + 1
+    })
+    snacksAfter[at].push(snack)
+  }
+  const sections: MealSection[] = []
+  const addSnacks = (list: Meal[]) => list.length && sections.push({ slot: 'snack', meals: list })
+  addSnacks(snacksAfter[0])
+  main.forEach((section, i) => {
+    sections.push(section)
+    addSnacks(snacksAfter[i + 1])
+  })
+  if (!sections.some((s) => s.slot === 'snack')) sections.push({ slot: 'snack', meals: [] })
+  return sections
+}
+
+export function toMeal(item: KnownItem, id: string, date: string, time: string, slot: MealSlot): Meal {
   const scale = SIZE[item.size] * item.qty
   const { food } = item
   return {
     id,
     date,
     time,
+    slot,
     name: (item.qty !== 1 && !item.amount ? fmtQty(item.qty) + ' × ' : '') + food.name,
     portion: item.amount ? fmtAmount(item.amount) : { S: 'small, ', M: '', L: 'large, ' }[item.size] + food.portion,
     kcal: kcalOf(item),
@@ -349,7 +398,7 @@ export function quickList(favs: Favorite[], meals: Meal[]): QuickEntry[] {
   const favNames = new Set(favs.map((f) => f.name.toLowerCase()))
   const counts = new Map<string, { food: Food; count: number }>()
   for (const { count, ...food } of HISTORY) counts.set(food.name, { food, count })
-  for (const { id: _id, date: _date, time: _time, ...food } of meals) {
+  for (const { id: _id, date: _date, time: _time, slot: _slot, ...food } of meals) {
     const entry = counts.get(food.name)
     if (entry) entry.count++
     else counts.set(food.name, { food, count: 1 })

@@ -45,6 +45,8 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 No macros on Today.
 
 **Fuel**: kcal today; macros and fiber (Protein, Fat, Carbs, Fiber) as bars relative to the user's targets, with an "Edit targets" button; Quick add; list of logged food; tips.
+- Logged food is grouped by meal (`mealSections`), each section with its kcal and an "Add" button; there is no Add food FAB on Fuel. Breakfast, Lunch and Dinner are always shown, in that order. Snacks sit where they happened in time: after the main meal begun before them, so a snack after dinner comes after Dinner. With no snack yet, an empty Snack section comes last.
+- Add food has a meal picker; the default is the meal opened from, else the usual one for the time of day (`slotForTime`). Quick add uses the time of day too.
 - Macro status: "n g to go" / "✓ on target" / "✓ +n g extra". Calm view: "room for more" / "almost there" / "target reached".
 - Targets sheet shows whether protein, fat and carbs add up to the calorie plan (±150 kcal) and gently says if not.
 - Quick add has two parts. **My foods**: user-saved items, created via "+ New" or the ★ on any logged item. **Often in your diary**: items logged at least twice, top 5, no duplicates with My foods.
@@ -90,7 +92,8 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 
 - AI parses free text and photos into **structure** (foods, quantities, portion size; or activity type, duration, intensity). Calories come from a nutrition database or formulas, not from the model's guess, so results are consistent.
 - Always show a confirmation card where the user can adjust the portion (Small / Medium / Large) before saving.
-- All calls go through a small proxy on our own server. **Never ship the API key in the client.** Rate-limit per user per day.
+- All calls go through a small proxy, a Cloudflare Worker in `worker/` (`npm run deploy` there; key set with `wrangler secret put OPENAI_API_KEY`). **Never ship the API key in the client.** It allows only our origins and limits each IP to 10 requests a minute and `DAILY_LIMIT` a day (hashed IP in KV). The model is the `MODEL` var in `wrangler.toml`.
+- Client: `src/lib/aiFood.ts`, address in `VITE_AI_URL` (no address = no AI). "Recognize" parses on the device first and sends only the parts it didn't know. The AI returns an English CIQUAL search term and grams per food, from text in any language (English, Spanish, Russian).
 - Send only the food text or photo. No name, weight or other health data.
 - Photos: resize client-side to ~768 px before upload. Do not store them on the server. Keep them in the app (IndexedDB) as a photo food diary; saving to the gallery only via the share sheet.
 - Build the app so it still works without AI (search, My foods, Quick add).

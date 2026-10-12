@@ -22,11 +22,14 @@ export interface Favorite extends Food {
   id: string
 }
 
+export type MealSlot = 'breakfast' | 'snack' | 'lunch' | 'dinner'
+
 export interface Meal extends Food {
   id: string
   /** Local day, as YYYY-MM-DD. */
   date: string
   time: string
+  slot: MealSlot
 }
 
 export interface ActivityEntry {

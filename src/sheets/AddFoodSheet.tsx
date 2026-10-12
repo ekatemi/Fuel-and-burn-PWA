@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { CloseIcon } from '../components/Icons'
 import { QuickChips } from '../components/QuickChips'
 import { Sheet } from '../components/Sheet'
+import { AiError, aiAvailable, recognizeFood } from '../lib/aiFood'
 import { dbItem, loadFoodDb, nameOf, type DbFood, type FoodDb } from '../lib/foodDb'
-import { fmt, fmtQty, isKnown, kcalOf, SIZE_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
+import { fmt, fmtQty, isKnown, kcalOf, MEAL_SLOTS, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
 import { parseFoodText } from '../lib/parseFood'
 import { useApp } from '../state/AppContext'
-import type { DraftItem, KnownItem, PortionSize } from '../types'
+import type { DraftItem, KnownItem, MealSlot, PortionSize, UnknownItem } from '../types'
 
 const SIZES: PortionSize[] = ['S', 'M', 'L']
 const MIN_SEARCH = 2
@@ -34,14 +35,17 @@ function DbResult({ food, numbers, onPick }: { food: DbFood; numbers: boolean; o
 }
 
 export function AddFoodSheet() {
-  const { state, update, today, diaryDate, addMeals, removeMeals, closeSheet, showToast } = useApp()
+  const { state, update, today, diaryDate, addMeals, removeMeals, closeSheet, showToast, addSlot } = useApp()
   // Opened from the diary, food goes to the day being viewed; anywhere else, to today.
   const date = state.view === 'fuel' ? diaryDate : today
+  const [slot, setSlot] = useState<MealSlot>(() => addSlot ?? slotForTime(nowTime()))
   const [text, setText] = useState('')
   const [items, setItems] = useState<DraftItem[]>([])
   const [tried, setTried] = useState(false)
   const [search, setSearch] = useState('')
   const [db, setDb] = useState<FoodDb | null>(null)
+  const [recognizing, setRecognizing] = useState(false)
+  const [aiNote, setAiNote] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -57,15 +61,37 @@ export function AddFoodSheet() {
   const replaceItem = (index: number, next: DraftItem) => setItems((list) => list.map((it, i) => (i === index ? next : it)))
   const results = db && search.trim().length >= MIN_SEARCH ? db.search(search, SEARCH_RESULTS) : []
 
+  /** On-device parsing first; what it didn't know goes to AI when that is available. */
+  const recognize = async () => {
+    const local = parseFoodText(text)
+    setItems(local)
+    setTried(true)
+    setAiNote('')
+    const unknown = local.filter((item): item is UnknownItem => !isKnown(item))
+    if (!unknown.length || !aiAvailable()) return
+    setRecognizing(true)
+    try {
+      const recognized = await recognizeFood(unknown.map((item) => item.raw).join('; '), db ?? (await loadFoodDb()))
+      if (recognized.length) setItems([...local.filter(isKnown), ...recognized])
+    } catch (e) {
+      setAiNote(
+        e instanceof AiError && e.reason === 'rate_limited'
+          ? 'Smart recognition is resting for today. Pick matches below.'
+          : 'Couldn’t reach smart recognition. Pick matches below.',
+      )
+    } finally {
+      setRecognizing(false)
+    }
+  }
+
   const commit = () => {
     if (!known.length) return
-    const ids = addMeals(known, date)
+    const ids = addMeals(known, date, slot)
     closeSheet()
     if (state.view !== 'fuel') update((s) => ({ ...s, view: 'today' }))
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    showToast(known.length === 1 ? 'Added ' + known[0].food.name : `Added ${known.length} items`, () =>
-      removeMeals(ids),
-    )
+    const where = `Added to ${SLOT_NAMES[slot].toLowerCase()}: `
+    showToast(where + (known.length === 1 ? known[0].food.name : `${known.length} items`), () => removeMeals(ids))
   }
 
   return (
@@ -76,19 +102,18 @@ export function AddFoodSheet() {
       <textarea
         id="desc"
         autoFocus
-        placeholder="e.g. 2 eggs and toast, 150 g salmon"
+        placeholder="e.g. 2 eggs and toast, 150 g salmon. Any language."
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <button
-        className="bigbtn secondary"
-        onClick={() => {
-          setItems(parseFoodText(text))
-          setTried(true)
-        }}
-      >
-        Recognize
+      <button className="bigbtn secondary" disabled={recognizing || !text.trim()} onClick={recognize}>
+        {recognizing ? 'Recognizing…' : 'Recognize'}
       </button>
+      {aiNote && (
+        <span className="muted" style={{ fontSize: 13 }}>
+          {aiNote}
+        </span>
+      )}
 
       {items.length > 0 && (
         <div className="parsed" aria-live="polite">
@@ -226,8 +251,20 @@ export function AddFoodSheet() {
         }}
       />
 
+      <span className="h" id="meal-label">
+        Meal
+      </span>
+      <div className="sizes slots" role="group" aria-labelledby="meal-label">
+        {MEAL_SLOTS.map((s) => (
+          <button key={s} aria-pressed={slot === s} onClick={() => setSlot(s)}>
+            {SLOT_NAMES[s]}
+          </button>
+        ))}
+      </div>
       <button className="bigbtn primary" disabled={!known.length} onClick={commit}>
-        {known.length && state.numbers ? `Add ${fmt(total)} kcal` : date === today ? 'Add to today' : 'Add to this day'}
+        {known.length && state.numbers
+          ? `Add ${fmt(total)} kcal to ${SLOT_NAMES[slot].toLowerCase()}`
+          : `Add to ${SLOT_NAMES[slot].toLowerCase()}`}
       </button>
       <p className="muted fine">Food data: ANSES-CIQUAL 2020 food composition table, Licence Ouverte.</p>
     </Sheet>

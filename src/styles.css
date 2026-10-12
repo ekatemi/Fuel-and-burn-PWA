@@ -121,6 +121,8 @@ details p{padding-bottom:16px;font-size:13px}
 .qchip.new{border-style:dashed;color:var(--burn-ink)}
 .list{background:var(--surface);border-radius:18px;padding:4px 8px 4px 16px}
 .sheet .list{background:var(--surface2)}
+/* A long sheet scrolls; its parts keep their height instead of being squeezed. */
+.sheet>*{flex-shrink:0}
 .item{display:flex;align-items:center;gap:10px;min-height:60px}
 .item+.item{border-top:1px solid var(--track)}
 .item .main{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -157,6 +159,11 @@ textarea{width:100%;min-height:88px;border-radius:12px;border:1px solid var(--ou
 .sizes button{height:36px;min-width:44px;padding:0 10px;border:0;background:transparent;font-size:13px}
 .sizes button+button{border-left:1px solid var(--outline)}
 .sizes button[aria-pressed="true"]{background:var(--burn-cont);color:var(--on-burn-cont);font-weight:600}
+.sizes.slots{display:flex;align-self:stretch}
+.sizes.slots button{flex:1;min-width:0;height:40px;padding:0 4px}
+.slot{gap:4px}
+.slot+.slot{margin-top:8px}
+.slot-name{font-size:15px;font-weight:600}
 .stepper{display:flex;align-items:center;justify-content:center;gap:20px}
 .stepper button{width:56px;height:56px;border-radius:28px;border:0;background:var(--burn-cont);color:var(--on-burn-cont);font-size:26px;font-weight:600}
 .fld{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink2)}

@@ -1,6 +1,7 @@
 // Sample data carried over from the prototype. The diary itself is real and dated;
 // what is here stands in for a watch sync and for history older than the diary.
 import { addDays } from '../lib/dates'
+import { slotForTime } from '../lib/model'
 import { newId } from '../lib/ids'
 import type { AppState, Favorite, Food, Meal, Profile } from '../types'
 
@@ -77,6 +78,7 @@ function sampleMeals(today: string): Meal[] {
       id: newId(),
       date: addDays(today, -daysAgo),
       time,
+      slot: slotForTime(time),
       name,
       portion,
       kcal,

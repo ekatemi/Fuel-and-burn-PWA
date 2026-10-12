@@ -51,7 +51,7 @@ describe('logging a database food', () => {
     const apple = db.search('apple', 1)[0]
     const item = dbItem(apple, 150)
     expect(kcalOf(item)).toBe(Math.round((apple.kcal * 1.5) / 5) * 5)
-    const meal = toMeal(item, 'id', '2026-10-06', '12:00')
+    const meal = toMeal(item, 'id', '2026-10-06', '12:00', 'lunch')
     expect(meal.portion).toBe('150 g')
     expect(meal.name).toBe('Apple, pulp, raw')
   })

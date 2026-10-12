@@ -3,11 +3,12 @@
 // previous version into the new one. Saved data and backups both go through migrate().
 import { freshState } from '../data/demo'
 import { todayKey } from '../lib/dates'
+import { slotForTime } from '../lib/model'
 import { newId } from '../lib/ids'
 import type { AppState } from '../types'
 import { emptySync, type SyncMeta } from './sync'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export interface StoredDoc {
   schemaVersion: number
@@ -38,6 +39,12 @@ const MIGRATIONS: Record<number, (doc: Raw) => Raw> = {
       sync: emptySync(),
     }
   },
+  // v2: meals without a slot. Each gets the usual meal for the time it was logged.
+  2: (doc) => ({
+    ...doc,
+    schemaVersion: 3,
+    state: { ...doc.state, meals: (doc.state.meals as Raw[]).map((m) => (m.slot ? m : { ...m, slot: slotForTime(m.time) })) },
+  }),
 }
 
 /** Brings saved or imported data to the current format, or returns null if it isn't ours. */
