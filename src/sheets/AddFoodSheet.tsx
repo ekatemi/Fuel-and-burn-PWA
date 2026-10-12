@@ -128,8 +128,15 @@ export function AddFoodSheet() {
       recording.current = await startRecording()
       setSeconds(0)
       setVoice('recording')
-    } catch {
-      setAiNote('The microphone is off for this app. Allow it in your phone’s settings, or type instead.')
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : ''
+      setAiNote(
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'The microphone is off for this app. Allow it in your browser’s site settings, or type instead.'
+          : name === 'NotFoundError'
+            ? 'No microphone found. You can type instead.'
+            : `Couldn’t start the microphone${name ? ` (${name})` : ''}. You can type instead.`,
+      )
     }
   }
 
