@@ -5,7 +5,7 @@ The core question the app answers: **"Am I in a deficit, how big, and where is m
 Everything else is secondary. Keep it simpler than Samsung Health: few screens, obvious navigation.
 
 - Live PWA: https://mikhaylova.dev/fuel/
-- Stack: React 19 + TypeScript, Vite, vite-plugin-pwa (Workbox service worker). No backend. Hosted as static files on a VPS (nginx, `/var/www/html/fuel`) behind Cloudflare; build with `npm run build:fuel`, upload `fuel.tgz`.
+- Stack: React 19 + TypeScript, Vite, vite-plugin-pwa (Workbox service worker). No backend. Hosted as static files on a VPS (nginx, `/var/www/mikhaylova.dev/fuel`) behind Cloudflare; build with `npm run build:fuel`, upload `fuel.tgz`.
 - UI language: English. Units: kg, km, kcal.
 - Status: personal trial project, free. Goal: go through all stages and publish (PWA now, Google Play later).
 
