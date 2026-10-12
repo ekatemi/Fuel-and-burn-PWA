@@ -25,6 +25,25 @@ export class AiError extends Error {
   }
 }
 
+/** Turns a voice note into text, in whatever language it was spoken. */
+export async function transcribeSpeech(audio: Blob): Promise<string> {
+  let response: Response
+  try {
+    // The proxy's other address, next to /parse-food.
+    response = await fetch(new URL('transcribe', AI_URL), {
+      method: 'POST',
+      // "audio/webm;codecs=opus" → "audio/webm": the proxy goes by the container.
+      headers: { 'Content-Type': audio.type.split(';')[0] },
+      body: audio,
+    })
+  } catch {
+    throw new AiError('unavailable')
+  }
+  if (response.status === 429) throw new AiError('rate_limited')
+  if (!response.ok) throw new AiError('unavailable')
+  return ((await response.json()) as { text: string }).text
+}
+
 /** Sends only the food text: nothing about the person. */
 async function requestFoods(text: string): Promise<ParsedFood[]> {
   let response: Response

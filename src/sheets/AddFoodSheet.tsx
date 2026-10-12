@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import { CloseIcon } from '../components/Icons'
+import { useEffect, useRef, useState } from 'react'
+import { CloseIcon, MicIcon, StopIcon } from '../components/Icons'
 import { QuickChips } from '../components/QuickChips'
 import { Sheet } from '../components/Sheet'
-import { AiError, aiAvailable, recognizeFood } from '../lib/aiFood'
+import { AiError, aiAvailable, recognizeFood, transcribeSpeech } from '../lib/aiFood'
 import { dbItem, loadFoodDb, nameOf, type DbFood, type FoodDb } from '../lib/foodDb'
 import { fmt, fmtQty, isKnown, kcalOf, MEAL_SLOTS, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
 import { parseFoodText } from '../lib/parseFood'
+import { canRecord, startRecording, type Recording } from '../lib/recorder'
 import { useApp } from '../state/AppContext'
 import type { DraftItem, KnownItem, MealSlot, PortionSize, UnknownItem } from '../types'
 
@@ -13,6 +14,8 @@ const SIZES: PortionSize[] = ['S', 'M', 'L']
 const MIN_SEARCH = 2
 const SEARCH_RESULTS = 8
 const SUGGESTIONS = 3
+/** A voice note stops by itself after this long. */
+const MAX_VOICE_SECONDS = 30
 
 /** Same item with a new weight or volume. */
 function withAmount(item: KnownItem, value: number): KnownItem {
@@ -46,6 +49,18 @@ export function AddFoodSheet() {
   const [db, setDb] = useState<FoodDb | null>(null)
   const [recognizing, setRecognizing] = useState(false)
   const [aiNote, setAiNote] = useState('')
+  const [voice, setVoice] = useState<'idle' | 'recording' | 'transcribing'>('idle')
+  const [seconds, setSeconds] = useState(0)
+  const recording = useRef<Recording | null>(null)
+
+  // Closing the sheet mid-recording turns the microphone off.
+  useEffect(() => () => recording.current?.cancel(), [])
+
+  useEffect(() => {
+    if (voice !== 'recording') return
+    const timer = window.setInterval(() => setSeconds((n) => n + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [voice])
 
   useEffect(() => {
     let cancelled = false
@@ -61,9 +76,14 @@ export function AddFoodSheet() {
   const replaceItem = (index: number, next: DraftItem) => setItems((list) => list.map((it, i) => (i === index ? next : it)))
   const results = db && search.trim().length >= MIN_SEARCH ? db.search(search, SEARCH_RESULTS) : []
 
+  const aiFailed = (e: unknown) =>
+    e instanceof AiError && e.reason === 'rate_limited'
+      ? 'Smart recognition is resting for today.'
+      : 'Couldn’t reach smart recognition.'
+
   /** On-device parsing first; what it didn't know goes to AI when that is available. */
-  const recognize = async () => {
-    const local = parseFoodText(text)
+  const recognize = async (input = text) => {
+    const local = parseFoodText(input)
     setItems(local)
     setTried(true)
     setAiNote('')
@@ -74,15 +94,49 @@ export function AddFoodSheet() {
       const recognized = await recognizeFood(unknown.map((item) => item.raw).join('; '), db ?? (await loadFoodDb()))
       if (recognized.length) setItems([...local.filter(isKnown), ...recognized])
     } catch (e) {
-      setAiNote(
-        e instanceof AiError && e.reason === 'rate_limited'
-          ? 'Smart recognition is resting for today. Pick matches below.'
-          : 'Couldn’t reach smart recognition. Pick matches below.',
-      )
+      setAiNote(aiFailed(e) + ' Pick matches below.')
     } finally {
       setRecognizing(false)
     }
   }
+
+  const stopVoice = async () => {
+    const current = recording.current
+    if (!current) return
+    recording.current = null
+    setVoice('transcribing')
+    try {
+      const spoken = await transcribeSpeech(await current.stop())
+      if (!spoken) {
+        setAiNote('Didn’t catch that. Try again a little closer to the phone.')
+        return
+      }
+      // Speaking adds to what is already typed, then recognizes it all.
+      const next = text.trim() ? `${text.trim()}, ${spoken}` : spoken
+      setText(next)
+      await recognize(next)
+    } catch (e) {
+      setAiNote(aiFailed(e) + ' You can type instead.')
+    } finally {
+      setVoice('idle')
+    }
+  }
+
+  const startVoice = async () => {
+    setAiNote('')
+    try {
+      recording.current = await startRecording()
+      setSeconds(0)
+      setVoice('recording')
+    } catch {
+      setAiNote('The microphone is off for this app. Allow it in your phone’s settings, or type instead.')
+    }
+  }
+
+  // The time limit stops a forgotten recording.
+  useEffect(() => {
+    if (voice === 'recording' && seconds >= MAX_VOICE_SECONDS) stopVoice()
+  })
 
   const commit = () => {
     if (!known.length) return
@@ -106,9 +160,27 @@ export function AddFoodSheet() {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <button className="bigbtn secondary" disabled={recognizing || !text.trim()} onClick={recognize}>
-        {recognizing ? 'Recognizing…' : 'Recognize'}
-      </button>
+      <div className="row center" style={{ gap: 8 }}>
+        {aiAvailable() && canRecord() && (
+          <button
+            className={'bigbtn secondary voice' + (voice === 'recording' ? ' on' : '')}
+            disabled={voice === 'transcribing' || recognizing}
+            aria-label={voice === 'recording' ? 'Stop and use what I said' : 'Speak what you ate'}
+            onClick={voice === 'recording' ? stopVoice : startVoice}
+          >
+            {voice === 'recording' ? <StopIcon /> : <MicIcon />}
+            {voice === 'recording' ? `Stop 0:${String(seconds).padStart(2, '0')}` : voice === 'transcribing' ? 'Listening…' : 'Speak'}
+          </button>
+        )}
+        <button
+          className="bigbtn secondary"
+          style={{ flex: 1 }}
+          disabled={recognizing || voice !== 'idle' || !text.trim()}
+          onClick={() => recognize()}
+        >
+          {recognizing ? 'Recognizing…' : 'Recognize'}
+        </button>
+      </div>
       {aiNote && (
         <span className="muted" style={{ fontSize: 13 }}>
           {aiNote}

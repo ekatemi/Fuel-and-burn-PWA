@@ -112,6 +112,10 @@ details p{padding-bottom:16px;font-size:13px}
 .bigbtn:disabled{opacity:.45;cursor:not-allowed}
 .primary{background:var(--burn);color:var(--on-burn)}
 .secondary{background:var(--burn-cont);color:var(--on-burn-cont)}
+.voice{padding:0 18px;min-width:120px;font-variant-numeric:tabular-nums}
+.voice.on{background:var(--fuel);color:#fff;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.75}}
+@media (prefers-reduced-motion:reduce){.voice.on{animation:none}}
 .fab{position:fixed;right:max(16px,calc(50vw - 224px));bottom:calc(100px + env(safe-area-inset-bottom,0px));height:56px;padding:0 20px 0 16px;border-radius:16px;border:0;background:var(--burn);color:var(--on-burn);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;box-shadow:0 6px 14px rgba(20,22,26,.22),0 1px 3px rgba(20,22,26,.2);z-index:4}
 
 /* Food chips and lists */

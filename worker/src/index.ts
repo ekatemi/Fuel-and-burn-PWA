@@ -1,12 +1,15 @@
-// AI proxy for Fuel & Burn. The app posts the words it couldn't recognise; OpenAI turns them
-// into foods with an English search term and a weight. Calories are not asked for: the app looks
-// each food up in its own database (CIQUAL), so numbers stay consistent.
+// AI proxy for Fuel & Burn.
+// /parse-food: the app posts the words it couldn't recognise; OpenAI turns them into foods with an
+// English search term and a weight. Calories are not asked for: the app looks each food up in its
+// own database (CIQUAL), so numbers stay consistent.
+// /transcribe: a short voice note (any language) to text.
 // Nothing is stored except a daily request count per hashed IP address.
 
 export interface Env {
   OPENAI_API_KEY: string
   ALLOWED_ORIGINS: string
   MODEL: string
+  TRANSCRIBE_MODEL: string
   DAILY_LIMIT: string
   BURST: { limit: (options: { key: string }) => Promise<{ success: boolean }> }
   USAGE: KVNamespace
@@ -30,6 +33,10 @@ export interface ParsedFood {
 }
 
 const MAX_TEXT = 500
+/** About a minute of speech; a food note is a few seconds. */
+const MAX_AUDIO_BYTES = 2_000_000
+/** File extensions OpenAI recognises, by the recorder's media type. */
+const AUDIO_TYPES: Record<string, string> = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'm4a', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' }
 const DAY_SECONDS = 24 * 60 * 60
 
 const INSTRUCTIONS = `You turn a description of what someone ate into a list of foods, to be looked up in the
@@ -133,6 +140,45 @@ async function parseFood(env: Env, text: string): Promise<ParsedFood[]> {
   return (JSON.parse(out) as { items: ParsedFood[] }).items
 }
 
+// No prompt: given a hint like "someone says what they ate", the model invents a meal from silence.
+async function transcribe(env: Env, audio: ArrayBuffer, type: string): Promise<string> {
+  const form = new FormData()
+  form.append('file', new Blob([audio], { type }), `speech.${AUDIO_TYPES[type]}`)
+  form.append('model', env.TRANSCRIBE_MODEL)
+  form.append('response_format', 'json')
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: form,
+  })
+  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`)
+  return ((await response.json()) as { text: string }).text.trim()
+}
+
+/** Each route reads its input and returns null when it is not valid. */
+const ROUTES: Record<string, { read: (request: Request) => Promise<unknown>; run: (env: Env, input: never) => Promise<unknown> }> = {
+  '/parse-food': {
+    async read(request) {
+      const text = await request
+        .json()
+        .then((body) => (body as { text?: unknown }).text)
+        .catch(() => null)
+      return typeof text === 'string' && text.trim() && text.length <= MAX_TEXT ? text.trim() : null
+    },
+    run: async (env, text: string) => ({ items: await parseFood(env, text) }),
+  },
+  '/transcribe': {
+    async read(request) {
+      // "audio/webm;codecs=opus" → "audio/webm"
+      const type = (request.headers.get('Content-Type') ?? '').split(';')[0].trim()
+      if (!(type in AUDIO_TYPES)) return null
+      const audio = await request.arrayBuffer()
+      return audio.byteLength > 0 && audio.byteLength <= MAX_AUDIO_BYTES ? { audio, type } : null
+    },
+    run: async (env, { audio, type }: { audio: ArrayBuffer; type: string }) => ({ text: await transcribe(env, audio, type) }),
+  },
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin')
@@ -142,19 +188,11 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors(allowed) })
     if (!allowed) return json({ error: 'forbidden' }, 403, null)
-    if (request.method !== 'POST' || new URL(request.url).pathname !== '/parse-food') {
-      return json({ error: 'not_found' }, 404, allowed)
-    }
+    const route = ROUTES[new URL(request.url).pathname]
+    if (request.method !== 'POST' || !route) return json({ error: 'not_found' }, 404, allowed)
 
-    let text: unknown
-    try {
-      text = ((await request.json()) as { text?: unknown }).text
-    } catch {
-      text = null
-    }
-    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT) {
-      return json({ error: 'bad_request' }, 400, allowed)
-    }
+    const input = await route.read(request)
+    if (input == null) return json({ error: 'bad_request' }, 400, allowed)
 
     const key = await clientKey(request)
     if (!(await env.BURST.limit({ key })).success || !(await withinDailyLimit(env, key))) {
@@ -162,7 +200,7 @@ export default {
     }
 
     try {
-      return json({ items: await parseFood(env, text.trim()) }, 200, allowed)
+      return json(await route.run(env, input as never), 200, allowed)
     } catch (e) {
       console.error(e)
       return json({ error: 'upstream' }, 502, allowed)
