@@ -7,7 +7,7 @@ compatibility_date = "2026-09-01"
 [vars]
 # Pages allowed to call the proxy, besides local dev servers.
 ALLOWED_ORIGINS = "https://mikhaylova.dev"
-MODEL = "gpt-5.4-nano"
+MODEL = "gpt-5.4-mini"
 TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 # Requests a day from one IP address.
 DAILY_LIMIT = "100"

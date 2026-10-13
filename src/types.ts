@@ -75,6 +75,8 @@ export interface KnownItem {
   amount?: { value: number; unit: 'g' | 'ml' }
   /** Grams (or ml) in one unit of qty, so an amount can be edited. */
   portionGrams?: number
+  /** The dish this is an ingredient of, as the person named it; the diary logs the dish as one entry. */
+  dish?: string
 }
 export interface UnknownItem {
   unknown: true
@@ -83,6 +85,7 @@ export interface UnknownItem {
   query: string
   /** Grams or ml, when the text gave them. */
   amount?: number
+  dish?: string
 }
 export type DraftItem = KnownItem | UnknownItem
 

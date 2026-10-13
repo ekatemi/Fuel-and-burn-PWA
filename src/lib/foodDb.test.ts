@@ -24,6 +24,11 @@ describe('search', () => {
     expect(top('avocado')[0]).toBe('Avocado, pulp, raw')
   })
 
+  it('finds the everyday kind before special ones', () => {
+    expect(top('cheese')[0]).toBe('Cheese (average)')
+    expect(top('bread')[0]).not.toMatch(/gluten/i)
+  })
+
   it('still finds a product when the query names it', () => {
     expect(top('olive oil')[0]).toBe('Olive oil, extra virgin')
     expect(top('apple juice')[0]).toMatch(/^Apple juice/)

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { dishName } from './aiFood'
 import { loadFoodDb, type FoodDb } from './foodDb'
-import { isKnown } from './model'
+import { isKnown, itemsToLog, kcalOf } from './model'
 import type { DraftItem, KnownItem } from '../types'
 
 let db: FoodDb
@@ -10,7 +11,7 @@ let recognizeFood: (text: string, db: FoodDb) => Promise<DraftItem[]>
 function answer(items: object[]) {
   vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ items })))
 }
-const food = (query: string, fallback: string, kcal_per_100g: number, grams = 100) => ({ raw: query, name: query, query, fallback, kcal_per_100g, grams, count: null })
+const food = (query: string, fallback: string, kcal_per_100g: number, grams = 100, dish = '') => ({ raw: query, dish, name: query, query, fallback, kcal_per_100g, grams, count: null })
 const names = (items: DraftItem[]) => items.map((i) => (isKnown(i) ? i.food.name : '?'))
 
 beforeAll(async () => {
@@ -50,5 +51,33 @@ describe('recognizeFood', () => {
   it('prefers the plain food to filled products', async () => {
     answer([food('dried pasta cooked', 'pasta', 140)])
     expect(names(await recognizeFood('макароны', db))[0]).toMatch(/^Dried pasta, cooked/)
+  })
+
+  it('logs a dish as one entry under its own name', async () => {
+    const dish = 'Сэндвич с тунцом и салатом'
+    answer([
+      food('baguette bread', 'baguette', 270, 90, dish),
+      food('tuna canned', 'tuna', 120, 60, dish),
+      food('lettuce raw', 'lettuce', 15, 20, dish),
+      food('apple raw', 'apple', 52, 150, 'Яблоко'),
+    ])
+    const items = await recognizeFood('сэндвич с тунцом и салатом, яблоко', db)
+    const logged = itemsToLog(items)
+    expect(logged.map((i) => i.food.name)).toEqual([dish, 'Яблоко'])
+    expect(logged[0].food.portion).toBe('170 g')
+    const parts = items.slice(0, 3) as KnownItem[]
+    const sum = parts.reduce((a, p) => a + p.food.kcal * p.qty, 0)
+    expect(kcalOf(logged[0])).toBe(Math.round(sum / 5) * 5)
+  })
+
+  it('tidies dish names', () => {
+    expect(dishName('a coffee with milk')).toBe('Coffee with milk')
+    expect(dishName('гречка с курицей')).toBe('Гречка с курицей')
+    expect(dishName('  ')).toBeUndefined()
+  })
+
+  it('prefers the food the query names over one that only shares its words', async () => {
+    answer([food('egg cooked', 'egg', 155, 110)])
+    expect(names(await recognizeFood('2 яйца', db))[0]).toMatch(/^Egg, /)
   })
 })

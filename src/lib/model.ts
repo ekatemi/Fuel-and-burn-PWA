@@ -327,6 +327,62 @@ export const kcalOf = (item: KnownItem) => Math.round((item.food.kcal * SIZE[ite
 /** One item above this is almost certainly a typo in the amount. */
 export const SUSPICIOUS_KCAL = 2000
 
+// ---- Dishes ----------------------------------------------------------------
+// AI splits a dish into ingredients to look each up; the diary logs the dish, as the person named it.
+
+export interface ItemGroup {
+  /** Set for a dish's ingredients, which are logged as one entry. */
+  dish?: string
+  /** Positions in the item list. */
+  indices: number[]
+}
+
+/** Items in order, with the ingredients of each dish (which sit next to each other) in one group. */
+export function groupItems(items: DraftItem[]): ItemGroup[] {
+  const groups: ItemGroup[] = []
+  items.forEach((item, i) => {
+    const last = groups.at(-1)
+    if (item.dish && last?.dish === item.dish) last.indices.push(i)
+    else groups.push({ dish: item.dish, indices: [i] })
+  })
+  return groups
+}
+
+type Nutrient = 'kcal' | 'protein' | 'carbs' | 'fat' | 'fiber'
+
+/** One dish from its ingredients: their total weight and nutrition under the dish's name. */
+export function combineDish(name: string, parts: KnownItem[]): KnownItem {
+  const sum = (key: Nutrient) => parts.reduce((a, p) => a + p.food[key] * SIZE[p.size] * p.qty, 0)
+  const grams = parts.every((p) => p.amount?.unit === 'g') ? parts.reduce((a, p) => a + p.amount!.value, 0) : 0
+  return {
+    food: {
+      name,
+      portion: grams ? `${Math.round(grams)} g` : '1 portion',
+      kcal: sum('kcal'),
+      protein: sum('protein'),
+      carbs: sum('carbs'),
+      fat: sum('fat'),
+      fiber: sum('fiber'),
+    },
+    qty: 1,
+    size: 'M',
+  }
+}
+
+/** Dishes with an ingredient still to be matched: logging them now would leave its calories out. */
+export function unmatchedDishes(items: DraftItem[]): string[] {
+  return groupItems(items).flatMap(({ dish, indices }) => (dish && indices.some((i) => !isKnown(items[i])) ? [dish] : []))
+}
+
+/** What goes into the diary: each dish as one entry, other items as they are. Unmatched ingredients are left out. */
+export function itemsToLog(items: DraftItem[]): KnownItem[] {
+  return groupItems(items).flatMap(({ dish, indices }) => {
+    const known = indices.map((i) => items[i]).filter(isKnown)
+    if (!known.length) return []
+    return dish ? [combineDish(dish, known)] : known
+  })
+}
+
 export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'snack', 'lunch', 'dinner']
 export const SLOT_NAMES: Record<MealSlot, string> = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }
 

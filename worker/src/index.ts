@@ -18,6 +18,8 @@ export interface Env {
 export interface ParsedFood {
   /** The words of the input this item came from, unchanged. */
   raw: string
+  /** The dish this item is part of, as the person called it; the diary logs the dish, not its parts. */
+  dish: string
   /** Short English name, for display. */
   name: string
   /** Plain English words to search the food database for. */
@@ -47,16 +49,27 @@ ANSES-CIQUAL food composition table (English names). The text may be in English,
 
 Splitting:
 - Each food or drink is its own item: "chicken and rice" is two items.
+- Several pieces of one food are one item with the grams for all of them: "2 eggs" is one item, count 2.
+- A sandwich, burger, wrap or toast always has its bread as an item, besides the filling.
 - Anything added that has calories is its own item with its own grams: butter, oil, sauce, mayonnaise, sour cream, sugar, honey, dressing. "Toast with butter" is toast plus butter.
 - Keep a dish whole if a French generic food table likely has it (pizza, lasagne, quiche, paella, omelette, hamburger).
   Split a regional dish it likely lacks into its main ingredients (borscht: beetroot, cabbage, potato, beef, sour cream; patatas bravas: fried potato, tomato sauce).
 
 For each item return:
 - raw: the words of the input for this item, unchanged (repeat them for each ingredient of a split dish).
+- dish: the whole dish this item belongs to, copied from the person's words: everything they wrote about that dish,
+  in their language (never translated), without numbers or amounts, starting with a capital.
+  Everything joined to a food by "with", "с", "con", "из" or "on" is part of that dish, including a list after it.
+  Every ingredient of one dish has exactly the same dish, and they come one after another.
+  Foods listed separately with "and", "и", "y" or commas are separate dishes, unless they follow a "with".
+  Examples: "сэндвич с тунцом и салатом" → all items "Сэндвич с тунцом и салатом";
+  "porridge with banana and honey, 2 cups of tea" → "Porridge with banana and honey", then "Cups of tea";
+  "2 яйца и тост с маслом" → "Яйца", then "Тост с маслом" for both toast and butter.
+  For a photo, name each dish in the note's language, else in English.
 - name: a short English name, e.g. "Fried eggs".
 - query: 1 to 3 English words as CIQUAL names it, main food first, then form or state.
   Always say "cooked" or "raw" for foods that change weight in cooking (rice, pasta, meat, fish, legumes, potatoes).
-  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "tomato dried" (sun-dried tomatoes), "cream" (also for sour cream, smetana, crème fraîche).
+  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "tomato dried" (sun-dried tomatoes), "oat flakes cooked" (porridge, oatmeal), "cream" (also for sour cream, smetana, crème fraîche).
 - fallback: one word of your query, its main food, used if the whole query finds nothing ("chicken" for "chicken breast cooked").
 - kcal_per_100g: your rough estimate of kcal per 100 g of this food as eaten (cooked rice about 130, coffee with milk about 30).
 - grams: the total amount in grams (ml for drinks). Use the amount in the text; otherwise estimate a typical portion, times the count.
@@ -79,9 +92,10 @@ const SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['raw', 'name', 'query', 'fallback', 'kcal_per_100g', 'grams', 'count'],
+        required: ['raw', 'dish', 'name', 'query', 'fallback', 'kcal_per_100g', 'grams', 'count'],
         properties: {
           raw: { type: 'string' },
+          dish: { type: 'string' },
           name: { type: 'string' },
           query: { type: 'string' },
           fallback: { type: 'string' },

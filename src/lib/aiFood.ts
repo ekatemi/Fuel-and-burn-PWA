@@ -2,13 +2,14 @@
 // The proxy returns foods with an English search term and grams; calories come from CIQUAL here.
 // This is the one file that knows about the provider.
 import type { DraftItem } from '../types'
-import { dbItem, nameOf, words, type DbFood, type FoodDb } from './foodDb'
+import { dbItem, headWords, nameOf, stem, words, type DbFood, type FoodDb } from './foodDb'
 
 /** The proxy's address. Without it the app works as before, without AI. */
 const AI_URL: string | undefined = import.meta.env.VITE_AI_URL
 
 interface ParsedFood {
   raw: string
+  dish: string
   name: string
   query: string
   fallback: string
@@ -92,12 +93,27 @@ function shorterQueries(food: ParsedFood): string[] {
   return q.filter((w) => w !== main).map((left) => q.filter((w) => w !== left).join(' '))
 }
 
-/** The best database match for the query, else for a shorter query or its main word, that fits the food. */
+/** The query names the food itself, not just part of it: "egg cooked" names "Egg, raw" but not "Egg roll or Nem",
+ *  and "toast bread" names "Toasted bread". */
+function namesFood(query: string, match: DbFood): boolean {
+  const q = words(query).map(stem)
+  return headWords(nameOf(match)).every((w) => q.some((x) => w.startsWith(x)))
+}
+
+/** The best database match for the query, else for a shorter query or its main word, that fits the food.
+ *  A match the query names outright comes before one that only contains its words. */
 function bestMatch(db: FoodDb, food: ParsedFood): DbFood | undefined {
   const fallback = words(food.query).includes(food.fallback.toLowerCase()) ? [food.fallback] : []
-  return [food.query, ...shorterQueries(food), ...fallback]
+  const fits = [food.query, ...shorterQueries(food), ...fallback]
     .flatMap((query) => db.search(query, CANDIDATES))
-    .find((match) => sameState(food.query, match) && plausible(food, match))
+    .filter((match) => sameState(food.query, match) && plausible(food, match))
+  return fits.find((match) => namesFood(food.query, match)) ?? fits[0]
+}
+
+/** The dish as a diary entry: "a coffee with milk" → "Coffee with milk". */
+export function dishName(dish: string): string | undefined {
+  const name = dish.trim().replace(/^(?:a|an|the|un|una|unos|unas)\s+/i, '')
+  return name ? name[0].toLocaleUpperCase() + name.slice(1) : undefined
 }
 
 /** Turns the text, or a photo with an optional note, into items:
@@ -107,6 +123,9 @@ export async function recognizeFood(text: string, db: FoodDb, image?: string): P
   return foods.map((food): DraftItem => {
     const grams = food.grams > 0 ? Math.round(food.grams) : undefined
     const match = bestMatch(db, food)
-    return match ? dbItem(match, grams) : { unknown: true, raw: food.name, query: food.fallback || food.query, amount: grams }
+    const dish = dishName(food.dish)
+    return match
+      ? { ...dbItem(match, grams), dish }
+      : { unknown: true, raw: food.name, query: food.fallback || food.query, amount: grams, dish }
   })
 }

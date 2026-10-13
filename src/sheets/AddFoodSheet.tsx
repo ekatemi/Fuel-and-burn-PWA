@@ -4,12 +4,12 @@ import { QuickChips } from '../components/QuickChips'
 import { Sheet } from '../components/Sheet'
 import { AiError, aiAvailable, recognizeFood, transcribeSpeech } from '../lib/aiFood'
 import { dbItem, loadFoodDb, nameOf, type DbFood, type FoodDb } from '../lib/foodDb'
-import { fmt, fmtQty, isKnown, kcalOf, MEAL_SLOTS, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
+import { combineDish, fmt, fmtQty, groupItems, isKnown, itemsToLog, kcalOf, MEAL_SLOTS, unmatchedDishes, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
 import { parseFoodText } from '../lib/parseFood'
 import { shrinkPhoto } from '../lib/photo'
 import { canRecord, startRecording, type Recording } from '../lib/recorder'
 import { useApp } from '../state/AppContext'
-import type { DraftItem, KnownItem, MealSlot, PortionSize, UnknownItem } from '../types'
+import type { DraftItem, KnownItem, MealSlot, PortionSize } from '../types'
 
 const SIZES: PortionSize[] = ['S', 'M', 'L']
 const MIN_SEARCH = 2
@@ -75,7 +75,9 @@ export function AddFoodSheet() {
     }
   }, [])
 
-  const known = items.filter(isKnown)
+  // What will be logged: each dish as one entry.
+  const known = itemsToLog(items)
+  const unmatched = unmatchedDishes(items)
   const total = known.reduce((a, item) => a + kcalOf(item), 0)
   const removeItem = (index: number) => setItems((list) => list.filter((_, i) => i !== index))
   const replaceItem = (index: number, next: DraftItem) => setItems((list) => list.map((it, i) => (i === index ? next : it)))
@@ -86,37 +88,29 @@ export function AddFoodSheet() {
       ? 'Smart recognition is resting for today.'
       : 'Couldn’t reach smart recognition.'
 
-  /** With a photo, AI reads the photo and the text is a note about it. */
-  const recognizePhoto = async (image: string, note: string) => {
+  /** AI reads the whole text, so a dish stays one dish; with a photo, the text is a note about it.
+   *  Without AI, or when it can't be reached, the on-device parser reads the text. */
+  const recognize = async (input = text, image = photo) => {
     setTried(true)
     setAiNote('')
-    setRecognizing(true)
-    try {
-      const recognized = await recognizeFood(note.trim(), db ?? (await loadFoodDb()), image)
-      setItems(recognized)
-      if (!recognized.length) setAiNote('Couldn’t see food in this photo. Add a note about it, or type what you ate.')
-    } catch (e) {
-      setAiNote(aiFailed(e) + ' You can type instead.')
-    } finally {
-      setRecognizing(false)
+    if (!aiAvailable()) {
+      setItems(parseFoodText(input))
+      return
     }
-  }
-
-  /** On-device parsing first; what it didn't know goes to AI when that is available. */
-  const recognize = async (input = text) => {
-    if (photo) return recognizePhoto(photo, input)
-    const local = parseFoodText(input)
-    setItems(local)
-    setTried(true)
-    setAiNote('')
-    const unknown = local.filter((item): item is UnknownItem => !isKnown(item))
-    if (!unknown.length || !aiAvailable()) return
     setRecognizing(true)
     try {
-      const recognized = await recognizeFood(unknown.map((item) => item.raw).join('; '), db ?? (await loadFoodDb()))
-      if (recognized.length) setItems([...local.filter(isKnown), ...recognized])
+      const recognized = await recognizeFood(input.trim(), db ?? (await loadFoodDb()), image ?? undefined)
+      setItems(recognized)
+      if (!recognized.length) {
+        setAiNote(image ? 'Couldn’t see food in this photo. Add a note about it, or type what you ate.' : '')
+      }
     } catch (e) {
-      setAiNote(aiFailed(e) + ' Pick matches below.')
+      if (image) {
+        setAiNote(aiFailed(e) + ' You can type instead.')
+      } else {
+        setItems(parseFoodText(input))
+        setAiNote(aiFailed(e) + ' Pick matches below.')
+      }
     } finally {
       setRecognizing(false)
     }
@@ -154,7 +148,7 @@ export function AddFoodSheet() {
       return
     }
     setPhoto(image)
-    await recognizePhoto(image, text)
+    await recognize(text, image)
   }
 
   const startVoice = async () => {
@@ -180,8 +174,104 @@ export function AddFoodSheet() {
     if (voice === 'recording' && seconds >= MAX_VOICE_SECONDS) stopVoice()
   })
 
+  /** One item: a known food with its amount or size, or an unknown one with matches to pick.
+   *  `part` when it is an ingredient inside a dish. */
+  const itemBody = (item: DraftItem, i: number, part = false) => {
+    if (isKnown(item)) {
+      return (
+        <>
+          <div className="row center">
+            <div className="col" style={{ gap: 2, minWidth: 0 }}>
+              <span style={part ? { fontSize: 14 } : { fontSize: 15, fontWeight: 600 }}>
+                {item.qty !== 1 && !item.amount && fmtQty(item.qty) + ' × '}
+                {item.food.name}
+              </span>
+              {!item.amount && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {item.food.portion}
+                </span>
+              )}
+            </div>
+            <div className="row center" style={{ gap: 4 }}>
+              {state.numbers && !part && (
+                <span className="num" style={{ fontSize: 15 }}>
+                  {fmt(kcalOf(item))}
+                </span>
+              )}
+              <button className="icon-btn" aria-label={`Remove ${item.food.name}`} onClick={() => removeItem(i)}>
+                <CloseIcon />
+              </button>
+            </div>
+          </div>
+          {item.amount ? (
+            <label className="amount">
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                aria-label={`Amount of ${item.food.name}`}
+                value={Math.round(item.amount.value) || ''}
+                onChange={(e) => replaceItem(i, withAmount(item, Math.max(0, parseFloat(e.target.value) || 0)))}
+              />
+              <span>{item.amount.unit}</span>
+            </label>
+          ) : (
+            <div className="sizes" role="group" aria-label="Portion size">
+              {SIZES.map((size) => (
+                <button key={size} aria-pressed={item.size === size} onClick={() => replaceItem(i, { ...item, size })}>
+                  {SIZE_NAMES[size]}
+                </button>
+              ))}
+            </div>
+          )}
+          {kcalOf(item) > SUSPICIOUS_KCAL && (
+            <span className="error" style={{ fontSize: 13 }}>
+              That’s a lot for one item. Check the amount.
+            </span>
+          )}
+        </>
+      )
+    }
+    const matches = db && item.query ? db.search(item.query, SUGGESTIONS) : []
+    return (
+      <>
+        <div className="row center">
+          <span style={{ fontSize: 14 }}>{part ? `“${item.raw}”` : `Not in the quick list: “${item.raw}”`}</span>
+          <button className="icon-btn" aria-label={`Remove ${item.raw}`} onClick={() => removeItem(i)}>
+            <CloseIcon />
+          </button>
+        </div>
+        {!db ? (
+          <span className="muted" style={{ fontSize: 12 }}>
+            Looking it up…
+          </span>
+        ) : !matches.length ? (
+          <span className="muted" style={{ fontSize: 12 }}>
+            Not found. Try other words in the search below.
+          </span>
+        ) : (
+          <>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Pick a match{item.amount ? '' : ', then set the amount'}:
+            </span>
+            <div className="list inset-list">
+              {matches.map((food) => (
+                <DbResult
+                  key={food.id}
+                  food={food}
+                  numbers={state.numbers}
+                  onPick={() => replaceItem(i, { ...dbItem(food, item.amount), dish: item.dish })}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
   const commit = () => {
-    if (!known.length) return
+    if (!known.length || unmatched.length) return
     const ids = addMeals(known, date, slot)
     closeSheet()
     if (state.view !== 'fuel') update((s) => ({ ...s, view: 'today' }))
@@ -272,93 +362,42 @@ export function AddFoodSheet() {
 
       {items.length > 0 && (
         <div className="parsed" aria-live="polite">
-          {items.map((item, i) =>
-            isKnown(item) ? (
-              <div className="pitem" key={i}>
+          {groupItems(items).map(({ dish, indices }) => {
+            if (!dish) {
+              return (
+                <div className="pitem" key={indices[0]}>
+                  {itemBody(items[indices[0]], indices[0])}
+                </div>
+              )
+            }
+            const parts = indices.map((i) => items[i]).filter(isKnown)
+            return (
+              <div className="pitem" key={indices[0]}>
                 <div className="row center">
-                  <div className="col" style={{ gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 15, fontWeight: 600 }}>
-                      {item.qty !== 1 && !item.amount && fmtQty(item.qty) + ' × '}
-                      {item.food.name}
-                    </span>
-                    {!item.amount && (
-                      <span className="muted" style={{ fontSize: 12 }}>
-                        {item.food.portion}
-                      </span>
-                    )}
-                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{dish}</span>
                   <div className="row center" style={{ gap: 4 }}>
-                    {state.numbers && (
+                    {state.numbers && parts.length > 0 && (
                       <span className="num" style={{ fontSize: 15 }}>
-                        {fmt(kcalOf(item))}
+                        {fmt(kcalOf(combineDish(dish, parts)))}
                       </span>
                     )}
-                    <button className="icon-btn" aria-label={`Remove ${item.food.name}`} onClick={() => removeItem(i)}>
+                    <button
+                      className="icon-btn"
+                      aria-label={`Remove ${dish}`}
+                      onClick={() => setItems((list) => list.filter((_, i) => !indices.includes(i)))}
+                    >
                       <CloseIcon />
                     </button>
                   </div>
                 </div>
-                {item.amount ? (
-                  <label className="amount">
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      aria-label={`Amount of ${item.food.name}`}
-                      value={Math.round(item.amount.value) || ''}
-                      onChange={(e) => replaceItem(i, withAmount(item, Math.max(0, parseFloat(e.target.value) || 0)))}
-                    />
-                    <span>{item.amount.unit}</span>
-                  </label>
-                ) : (
-                  <div className="sizes" role="group" aria-label="Portion size">
-                    {SIZES.map((size) => (
-                      <button key={size} aria-pressed={item.size === size} onClick={() => replaceItem(i, { ...item, size })}>
-                        {SIZE_NAMES[size]}
-                      </button>
-                    ))}
+                {indices.map((i) => (
+                  <div className="part" key={i}>
+                    {itemBody(items[i], i, true)}
                   </div>
-                )}
-                {kcalOf(item) > SUSPICIOUS_KCAL && (
-                  <span className="error" style={{ fontSize: 13 }}>
-                    That’s a lot for one item. Check the amount.
-                  </span>
-                )}
+                ))}
               </div>
-            ) : (
-              <div className="pitem" key={i}>
-                <div className="row center">
-                  <span style={{ fontSize: 14 }}>Not in the quick list: “{item.raw}”</span>
-                  <button className="icon-btn" aria-label="Remove" onClick={() => removeItem(i)}>
-                    <CloseIcon />
-                  </button>
-                </div>
-                {(() => {
-                  if (!db) return <span className="muted" style={{ fontSize: 12 }}>Looking it up…</span>
-                  const matches = item.query ? db.search(item.query, SUGGESTIONS) : []
-                  if (!matches.length) {
-                    return (
-                      <span className="muted" style={{ fontSize: 12 }}>
-                        Not found. Try other words in the search below.
-                      </span>
-                    )
-                  }
-                  return (
-                    <>
-                      <span className="muted" style={{ fontSize: 12 }}>
-                        Pick a match{item.amount ? '' : ', then set the amount'}:
-                      </span>
-                      <div className="list inset-list">
-                        {matches.map((food) => (
-                          <DbResult key={food.id} food={food} numbers={state.numbers} onPick={() => replaceItem(i, dbItem(food, item.amount))} />
-                        ))}
-                      </div>
-                    </>
-                  )
-                })()}
-              </div>
-            ),
-          )}
+            )
+          })}
         </div>
       )}
       {tried && !items.length && !photo && <p>Type something like “half a portion of patatas bravas and 2 beers”.</p>}
@@ -416,7 +455,12 @@ export function AddFoodSheet() {
           </button>
         ))}
       </div>
-      <button className="bigbtn primary" disabled={!known.length} onClick={commit}>
+      {unmatched.length > 0 && (
+        <span className="muted" style={{ fontSize: 13 }}>
+          Pick a match for each part of “{unmatched[0]}”, or remove the parts you can’t find.
+        </span>
+      )}
+      <button className="bigbtn primary" disabled={!known.length || unmatched.length > 0} onClick={commit}>
         {known.length && state.numbers
           ? `Add ${fmt(total)} kcal to ${SLOT_NAMES[slot].toLowerCase()}`
           : `Add to ${SLOT_NAMES[slot].toLowerCase()}`}

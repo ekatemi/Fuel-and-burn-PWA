@@ -54,8 +54,12 @@ export function stem(word: string): string {
   return word
 }
 
+/** Words of the food itself: the name before the first comma, without notes in brackets
+ *  ("Butter" in "Butter, 82% fat", "Cheese" in "Cheese (average)"). */
+export const headWords = (name: string) => words(name.split(',')[0].replace(/\([^)]*\)/g, ' ')).map(stem)
+
 // Words that make an entry less likely to be what someone means by a plain name.
-const SPECIFIC = new Set(['prepacked', 'organic', 'label', 'rouge', 'var', 'canned', 'frozen', 'powder', 'dried', 'dehydrated', 'enriched', 'reduced', 'diet', 'light'])
+const SPECIFIC = new Set(['gluten', 'prepacked', 'organic', 'label', 'rouge', 'var', 'canned', 'frozen', 'powder', 'dried', 'dehydrated', 'enriched', 'reduced', 'diet', 'light'])
 // Products made from a food: "chicken" means the meat, not "Chicken fat", unless the query says so.
 const DERIVED = new Set(['fat', 'oil', 'nectar', 'juice', 'flour', 'starch', 'bran', 'sauce', 'cake', 'compote', 'turnover', 'tart', 'pie', 'syrup', 'jam', 'chip', 'crisp', 'spread', 'soup', 'biscuit', 'drink', 'flavoured', 'flavored', 'crepe', 'filled', 'sandwich'])
 // Plain forms of a food, a small nudge up.
@@ -103,7 +107,7 @@ function build(raw: RawDb): FoodDb {
       list = foods.map((food) => {
         const name = nameOf(food, lang)
         const w = words(name).map(stem)
-        return { food, words: w, head: words(name.split(',')[0]).map(stem), specific: w.filter((x) => SPECIFIC.has(x)).length }
+        return { food, words: w, head: headWords(name), specific: w.filter((x) => SPECIFIC.has(x)).length }
       })
       index.set(lang, list)
     }
