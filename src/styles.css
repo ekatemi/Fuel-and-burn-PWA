@@ -106,6 +106,7 @@ details p{padding-bottom:16px;font-size:13px}
 .tbtn{height:40px;padding:0 14px;border-radius:20px;border:0;background:transparent;font-size:14px;font-weight:600}
 .tbtn.link{margin-right:-14px;color:var(--burn-ink)}
 .tbtn.with-icon{display:flex;align-items:center;gap:6px}
+.tbtn.gallery{align-self:center;height:48px;margin-top:-8px;color:var(--burn-ink)}
 .tbtn:disabled{opacity:.4;cursor:default}
 .tonal{height:40px;padding:0 16px;border-radius:20px;border:0;background:var(--tip-btn);color:var(--tip-ink);font-size:14px;font-weight:600}
 .bigbtn{min-height:56px;border-radius:16px;border:0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600}
@@ -116,6 +117,9 @@ details p{padding-bottom:16px;font-size:13px}
 .voice.on{background:var(--fuel);color:#fff;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.75}}
 @media (prefers-reduced-motion:reduce){.voice.on{animation:none}}
+.photo-note{display:flex;align-items:center;gap:12px;font-size:13px}
+.photo-note img{width:64px;height:64px;object-fit:cover;border-radius:12px;flex:none}
+.photo-note .muted{flex:1}
 .fab{position:fixed;right:max(16px,calc(50vw - 224px));bottom:calc(100px + env(safe-area-inset-bottom,0px));height:56px;padding:0 20px 0 16px;border-radius:16px;border:0;background:var(--burn);color:var(--on-burn);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;box-shadow:0 6px 14px rgba(20,22,26,.22),0 1px 3px rgba(20,22,26,.2);z-index:4}
 
 /* Food chips and lists */

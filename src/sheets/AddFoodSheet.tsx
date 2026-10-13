@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { CloseIcon, MicIcon, StopIcon } from '../components/Icons'
+import { CameraIcon, CloseIcon, MicIcon, StopIcon } from '../components/Icons'
 import { QuickChips } from '../components/QuickChips'
 import { Sheet } from '../components/Sheet'
 import { AiError, aiAvailable, recognizeFood, transcribeSpeech } from '../lib/aiFood'
 import { dbItem, loadFoodDb, nameOf, type DbFood, type FoodDb } from '../lib/foodDb'
 import { fmt, fmtQty, isKnown, kcalOf, MEAL_SLOTS, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
 import { parseFoodText } from '../lib/parseFood'
+import { shrinkPhoto } from '../lib/photo'
 import { canRecord, startRecording, type Recording } from '../lib/recorder'
 import { useApp } from '../state/AppContext'
 import type { DraftItem, KnownItem, MealSlot, PortionSize, UnknownItem } from '../types'
@@ -52,6 +53,10 @@ export function AddFoodSheet() {
   const [voice, setVoice] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   const [seconds, setSeconds] = useState(0)
   const recording = useRef<Recording | null>(null)
+  /** The meal photo, made small, as a data URL. It is sent for recognition and not kept. */
+  const [photo, setPhoto] = useState<string | null>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  const galleryInput = useRef<HTMLInputElement>(null)
 
   // Closing the sheet mid-recording turns the microphone off.
   useEffect(() => () => recording.current?.cancel(), [])
@@ -81,8 +86,25 @@ export function AddFoodSheet() {
       ? 'Smart recognition is resting for today.'
       : 'Couldn’t reach smart recognition.'
 
+  /** With a photo, AI reads the photo and the text is a note about it. */
+  const recognizePhoto = async (image: string, note: string) => {
+    setTried(true)
+    setAiNote('')
+    setRecognizing(true)
+    try {
+      const recognized = await recognizeFood(note.trim(), db ?? (await loadFoodDb()), image)
+      setItems(recognized)
+      if (!recognized.length) setAiNote('Couldn’t see food in this photo. Add a note about it, or type what you ate.')
+    } catch (e) {
+      setAiNote(aiFailed(e) + ' You can type instead.')
+    } finally {
+      setRecognizing(false)
+    }
+  }
+
   /** On-device parsing first; what it didn't know goes to AI when that is available. */
   const recognize = async (input = text) => {
+    if (photo) return recognizePhoto(photo, input)
     const local = parseFoodText(input)
     setItems(local)
     setTried(true)
@@ -120,6 +142,19 @@ export function AddFoodSheet() {
     } finally {
       setVoice('idle')
     }
+  }
+
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file) return
+    let image: string
+    try {
+      image = await shrinkPhoto(file)
+    } catch {
+      setAiNote('Couldn’t open this photo. Try another one.')
+      return
+    }
+    setPhoto(image)
+    await recognizePhoto(image, text)
   }
 
   const startVoice = async () => {
@@ -167,27 +202,68 @@ export function AddFoodSheet() {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <div className="row center" style={{ gap: 8 }}>
-        {aiAvailable() && canRecord() && (
-          <button
-            className={'bigbtn secondary voice' + (voice === 'recording' ? ' on' : '')}
-            disabled={voice === 'transcribing' || recognizing}
-            aria-label={voice === 'recording' ? 'Stop and use what I said' : 'Speak what you ate'}
-            onClick={voice === 'recording' ? stopVoice : startVoice}
-          >
-            {voice === 'recording' ? <StopIcon /> : <MicIcon />}
-            {voice === 'recording' ? `Stop 0:${String(seconds).padStart(2, '0')}` : voice === 'transcribing' ? 'Listening…' : 'Speak'}
+      {photo && (
+        <div className="photo-note">
+          <img src={photo} alt="Your meal" />
+          <span className="muted">The text above is sent as a note about the photo.</span>
+          <button className="icon-btn" aria-label="Remove photo" disabled={recognizing} onClick={() => setPhoto(null)}>
+            <CloseIcon />
           </button>
-        )}
-        <button
-          className="bigbtn secondary"
-          style={{ flex: 1 }}
-          disabled={recognizing || voice !== 'idle' || !text.trim()}
-          onClick={() => recognize()}
-        >
-          {recognizing ? 'Recognizing…' : 'Recognize'}
+        </div>
+      )}
+      {aiAvailable() && (
+        <div className="row center" style={{ gap: 8 }}>
+          {canRecord() && (
+            <button
+              className={'bigbtn secondary voice' + (voice === 'recording' ? ' on' : '')}
+              style={{ flex: 1 }}
+              disabled={voice === 'transcribing' || recognizing}
+              aria-label={voice === 'recording' ? 'Stop and use what I said' : 'Speak what you ate'}
+              onClick={voice === 'recording' ? stopVoice : startVoice}
+            >
+              {voice === 'recording' ? <StopIcon /> : <MicIcon />}
+              {voice === 'recording' ? `Stop 0:${String(seconds).padStart(2, '0')}` : voice === 'transcribing' ? 'Listening…' : 'Speak'}
+            </button>
+          )}
+          <button
+            className="bigbtn secondary voice"
+            style={{ flex: 1 }}
+            disabled={recognizing || voice !== 'idle'}
+            aria-label="Take a photo of your meal"
+            onClick={() => cameraInput.current?.click()}
+          >
+            <CameraIcon />
+            Camera
+          </button>
+        </div>
+      )}
+      {aiAvailable() && (
+        <button className="tbtn gallery" disabled={recognizing || voice !== 'idle'} onClick={() => galleryInput.current?.click()}>
+          or pick a photo from your gallery
         </button>
-      </div>
+      )}
+      {/* capture opens the phone's camera straight away; without it the phone offers the photo library. */}
+      {[cameraInput, galleryInput].map((ref, i) => (
+        <input
+          key={i}
+          ref={ref}
+          type="file"
+          accept="image/*"
+          capture={ref === cameraInput ? 'environment' : undefined}
+          hidden
+          onChange={(e) => {
+            pickPhoto(e.target.files?.[0])
+            e.target.value = ''
+          }}
+        />
+      ))}
+      <button
+        className="bigbtn secondary"
+        disabled={recognizing || voice !== 'idle' || (!text.trim() && !photo)}
+        onClick={() => recognize()}
+      >
+        {recognizing ? 'Recognizing…' : 'Recognize'}
+      </button>
       {aiNote && (
         <span className="muted" style={{ fontSize: 13 }}>
           {aiNote}
@@ -285,7 +361,7 @@ export function AddFoodSheet() {
           )}
         </div>
       )}
-      {tried && !items.length && <p>Type something like “half a portion of patatas bravas and 2 beers”.</p>}
+      {tried && !items.length && !photo && <p>Type something like “half a portion of patatas bravas and 2 beers”.</p>}
 
       <div className="col" style={{ gap: 8 }}>
         <label htmlFor="food-search" className="h">

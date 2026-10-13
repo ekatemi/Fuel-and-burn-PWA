@@ -1,6 +1,6 @@
 // AI proxy for Fuel & Burn.
-// /parse-food: the app posts the words it couldn't recognise; OpenAI turns them into foods with an
-// English search term and a weight. Calories are not asked for: the app looks each food up in its
+// /parse-food: the app posts the words it couldn't recognise, or a photo of a meal (with an optional note);
+// OpenAI turns them into foods with an English search term and a weight. Photos are not stored. Calories are not asked for: the app looks each food up in its
 // own database (CIQUAL), so numbers stay consistent.
 // /transcribe: a short voice note (any language) to text.
 // Nothing is stored except a daily request count per hashed IP address.
@@ -33,6 +33,9 @@ export interface ParsedFood {
 }
 
 const MAX_TEXT = 500
+/** A photo resized on the phone to ~768 px is ~100 KB; this leaves room. */
+const MAX_IMAGE_CHARS = 1_500_000
+const IMAGE_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/
 /** About a minute of speech; a food note is a few seconds. */
 const MAX_AUDIO_BYTES = 2_000_000
 /** File extensions OpenAI recognises, by the recorder's media type. */
@@ -53,12 +56,18 @@ For each item return:
 - name: a short English name, e.g. "Fried eggs".
 - query: 1 to 3 English words as CIQUAL names it, main food first, then form or state.
   Always say "cooked" or "raw" for foods that change weight in cooking (rice, pasta, meat, fish, legumes, potatoes).
-  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "cream" (also for sour cream, smetana, crème fraîche).
+  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "tomato dried" (sun-dried tomatoes), "cream" (also for sour cream, smetana, crème fraîche).
 - fallback: one word of your query, its main food, used if the whole query finds nothing ("chicken" for "chicken breast cooked").
 - kcal_per_100g: your rough estimate of kcal per 100 g of this food as eaten (cooked rice about 130, coffee with milk about 30).
 - grams: the total amount in grams (ml for drinks). Use the amount in the text; otherwise estimate a typical portion, times the count.
 - count: the number of pieces or portions if the text gives one, else null.
-If the text is not about food, return an empty list.`
+
+Photos:
+- List each food and drink you can see, split the same way, with grams estimated from the plate, cutlery and hands.
+- Count what was served, or what is left on the plate if the note says so. Include visible oil, sauce and dressing.
+- Any text that comes with the photo is a note from the person and wins over what you see: what the dish is, hidden
+  ingredients, how much they ate ("half"). For a photo, raw is a short description of the food in the note's language, else English.
+If the text or photo is not about food, return an empty list.`
 
 const SCHEMA = {
   type: 'object',
@@ -119,14 +128,31 @@ async function withinDailyLimit(env: Env, key: string): Promise<boolean> {
   return true
 }
 
-async function parseFood(env: Env, text: string): Promise<ParsedFood[]> {
+interface FoodInput {
+  text: string
+  /** A JPEG, PNG or WebP data URL. */
+  image: string | null
+}
+
+async function parseFood(env: Env, { text, image }: FoodInput): Promise<ParsedFood[]> {
+  const input = image
+    ? [
+        {
+          role: 'user',
+          content: [
+            ...(text ? [{ type: 'input_text', text }] : []),
+            { type: 'input_image', image_url: image, detail: 'auto' },
+          ],
+        },
+      ]
+    : text
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: env.MODEL,
       instructions: INSTRUCTIONS,
-      input: text,
+      input,
       reasoning: { effort: 'none' },
       text: { format: { type: 'json_schema', name: 'foods', strict: true, schema: SCHEMA } },
       store: false,
@@ -158,14 +184,15 @@ async function transcribe(env: Env, audio: ArrayBuffer, type: string): Promise<s
 /** Each route reads its input and returns null when it is not valid. */
 const ROUTES: Record<string, { read: (request: Request) => Promise<unknown>; run: (env: Env, input: never) => Promise<unknown> }> = {
   '/parse-food': {
-    async read(request) {
-      const text = await request
-        .json()
-        .then((body) => (body as { text?: unknown }).text)
-        .catch(() => null)
-      return typeof text === 'string' && text.trim() && text.length <= MAX_TEXT ? text.trim() : null
+    async read(request): Promise<FoodInput | null> {
+      const body = (await request.json().catch(() => null)) as { text?: unknown; image?: unknown } | null
+      const text = typeof body?.text === 'string' ? body.text.trim() : ''
+      const image = typeof body?.image === 'string' ? body.image : null
+      if (text.length > MAX_TEXT) return null
+      if (image != null && (image.length > MAX_IMAGE_CHARS || !IMAGE_DATA_URL.test(image))) return null
+      return text || image ? { text, image } : null
     },
-    run: async (env, text: string) => ({ items: await parseFood(env, text) }),
+    run: async (env, input: FoodInput) => ({ items: await parseFood(env, input) }),
   },
   '/transcribe': {
     async read(request) {

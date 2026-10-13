@@ -44,14 +44,14 @@ export async function transcribeSpeech(audio: Blob): Promise<string> {
   return ((await response.json()) as { text: string }).text
 }
 
-/** Sends only the food text: nothing about the person. */
-async function requestFoods(text: string): Promise<ParsedFood[]> {
+/** Sends only the food text or photo: nothing about the person. */
+async function requestFoods(text: string, image?: string): Promise<ParsedFood[]> {
   let response: Response
   try {
     response = await fetch(AI_URL!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, image }),
     })
   } catch {
     throw new AiError('unavailable')
@@ -84,18 +84,26 @@ function plausible(food: ParsedFood, match: DbFood): boolean {
   return Math.max(a, b) / Math.min(a, b) <= KCAL_RATIO
 }
 
-/** The best database match for the query, else for its main word, that fits the food. */
+/** The query with one word left out at a time, keeping the main food: "sun dried tomato" → "dried tomato". */
+function shorterQueries(food: ParsedFood): string[] {
+  const q = words(food.query)
+  if (q.length < 2) return []
+  const main = food.fallback.toLowerCase()
+  return q.filter((w) => w !== main).map((left) => q.filter((w) => w !== left).join(' '))
+}
+
+/** The best database match for the query, else for a shorter query or its main word, that fits the food. */
 function bestMatch(db: FoodDb, food: ParsedFood): DbFood | undefined {
-  const fallback = words(food.query).includes(food.fallback.toLowerCase()) ? db.search(food.fallback, CANDIDATES) : []
-  return db
-    .search(food.query, CANDIDATES)
-    .concat(fallback)
+  const fallback = words(food.query).includes(food.fallback.toLowerCase()) ? [food.fallback] : []
+  return [food.query, ...shorterQueries(food), ...fallback]
+    .flatMap((query) => db.search(query, CANDIDATES))
     .find((match) => sameState(food.query, match) && plausible(food, match))
 }
 
-/** Turns the text into items: the best database match with the AI's amount, else a choice for the user. */
-export async function recognizeFood(text: string, db: FoodDb): Promise<DraftItem[]> {
-  const foods = await requestFoods(text)
+/** Turns the text, or a photo with an optional note, into items:
+ *  the best database match with the AI's amount, else a choice for the user. */
+export async function recognizeFood(text: string, db: FoodDb, image?: string): Promise<DraftItem[]> {
+  const foods = await requestFoods(text, image)
   return foods.map((food): DraftItem => {
     const grams = food.grams > 0 ? Math.round(food.grams) : undefined
     const match = bestMatch(db, food)

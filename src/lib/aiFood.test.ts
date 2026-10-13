@@ -42,6 +42,11 @@ describe('recognizeFood', () => {
     expect(names(await recognizeFood('espresso', db)).join()).not.toMatch(/beer/i)
   })
 
+  it('drops a word the database lacks', async () => {
+    answer([food('sun-dried tomatoes', 'tomatoes', 250, 20)])
+    expect(names(await recognizeFood('вялеными томатами', db))).toEqual(['Tomato, dried'])
+  })
+
   it('prefers the plain food to filled products', async () => {
     answer([food('dried pasta cooked', 'pasta', 140)])
     expect(names(await recognizeFood('макароны', db))[0]).toMatch(/^Dried pasta, cooked/)
