@@ -61,7 +61,7 @@ export interface Profile {
   activity: Activity
 }
 
-export type Period = 'week' | 'month' | 'year' | 'all'
+export type Period = 'today' | 'week' | 'month' | 'year'
 export type View = 'today' | 'fuel' | 'burn' | 'trends'
 export type SheetName = 'add' | 'share' | 'activity' | 'goal' | 'profile' | 'newfav' | 'favs' | 'targets' | 'weight' | 'snacks'
 

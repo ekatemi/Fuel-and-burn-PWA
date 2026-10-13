@@ -1,6 +1,6 @@
 import { HISTORY, SAMPLE_MONTHS, SAMPLE_WEEKS } from '../data/demo'
 import { activityAdjustment, restingKcalPerDay } from './activity'
-import { addDays, monthDay, monthShort, monthStart, monthYear, weekdayShort, weekStart } from './dates'
+import { addDays, monthDay, monthShort, monthStart, weekdayShort, weekStart } from './dates'
 import type {
   ActivityEntry,
   DraftItem,
@@ -262,6 +262,8 @@ export interface PeriodData {
   balance: number
   avgEaten: number
   avgBurn: number
+  /** Today, still going: what was eaten so far against the day's plan, no balance shown. */
+  soFar?: boolean
 }
 
 const known = (items: PeriodItem[]) => items.flatMap((i) => (i.value == null ? [] : [i.value]))
@@ -273,6 +275,12 @@ export function periodData(
   maint: number,
   burnOn: (date: string) => number,
 ): PeriodData {
+  if (period === 'today') {
+    const eatenToday = eaten(mealsOn(meals, today))
+    const burn = burnOn(today)
+    return { title: 'So far today', phrase: 'today', items: [], empty: false, balance: eatenToday - burn, avgEaten: eatenToday, avgBurn: burn, soFar: true }
+  }
+
   const week = weekSummary(meals, today, burnOn)
   if (period === 'week') {
     return {
@@ -297,14 +305,10 @@ export function periodData(
     ...SAMPLE_MONTHS.map((value, i) => ({ label: monthShort(monthStart(today, i - SAMPLE_MONTHS.length)), value })),
     { label: monthShort(monthStart(today)), value: avg(known(monthItems)), live: true },
   ]
-  const started = monthYear(monthStart(today, -SAMPLE_MONTHS.length))
-
   const base =
     period === 'month'
       ? { title: 'This month', phrase: 'this month', items: monthItems }
-      : period === 'year'
-        ? { title: 'Past 12 months', phrase: 'over the past year', items: months.slice(-12) }
-        : { title: `Since you started, ${started}`, phrase: 'overall', items: months }
+      : { title: 'Past 12 months', phrase: 'over the past year', items: months.slice(-12) }
 
   const balance = avg(known(base.items))
   return { ...base, empty: false, balance, avgBurn: maint, avgEaten: maint + balance }
@@ -334,40 +338,6 @@ export function slotForTime(time: string): MealSlot {
   if (time < '16:00') return 'lunch'
   if (time < '19:00') return 'snack'
   return 'dinner'
-}
-
-export interface MealSection {
-  slot: MealSlot
-  /** Logged food, earliest first. Empty for a main meal not logged yet. */
-  meals: Meal[]
-}
-
-const MAIN_MEALS: MealSlot[] = ['breakfast', 'lunch', 'dinner']
-
-/** A day's food as the diary shows it: breakfast, lunch and dinner always, in that order, and snacks
- *  where they happened in time, after the last main meal started before them. With no snacks yet,
- *  an empty Snack section comes last, so there is always somewhere to add one. */
-export function mealSections(meals: Meal[]): MealSection[] {
-  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
-  const main = MAIN_MEALS.map((slot) => ({ slot, meals: sorted.filter((m) => m.slot === slot) }))
-  // Snacks before any main meal come first; after that, each goes after the meal begun before it.
-  const snacksAfter: Meal[][] = [[], [], [], []]
-  for (const snack of sorted.filter((m) => m.slot === 'snack')) {
-    let at = 0
-    main.forEach((section, i) => {
-      if (section.meals.length && section.meals[0].time <= snack.time) at = i + 1
-    })
-    snacksAfter[at].push(snack)
-  }
-  const sections: MealSection[] = []
-  const addSnacks = (list: Meal[]) => list.length && sections.push({ slot: 'snack', meals: list })
-  addSnacks(snacksAfter[0])
-  main.forEach((section, i) => {
-    sections.push(section)
-    addSnacks(snacksAfter[i + 1])
-  })
-  if (!sections.some((s) => s.slot === 'snack')) sections.push({ slot: 'snack', meals: [] })
-  return sections
 }
 
 export function toMeal(item: KnownItem, id: string, date: string, time: string, slot: MealSlot): Meal {

@@ -1,6 +1,11 @@
 import { fmt, goalIntake, r10, type PeriodData, type Status } from '../lib/model'
 import { useApp } from '../state/AppContext'
 
+/** Words for today so far, without numbers. A day still going has no verdict, only room left or not. */
+export function soFarWords(eaten: number, [lo, hi]: [number, number]): string {
+  return eaten < lo ? 'Room for more today' : eaten <= hi ? 'In your plan for today' : 'A fuller day today'
+}
+
 /** One bar for the period: what was eaten, against the goal band and maintenance. */
 export function BalanceBar({ period, status }: { period: PeriodData; status: Status }) {
   const { state } = useApp()
@@ -22,12 +27,12 @@ export function BalanceBar({ period, status }: { period: PeriodData; status: Sta
             <>
               <div className="onum">{fmt(avgEaten)}</div>
               <div className="muted" style={{ fontSize: 14 }}>
-                kcal a day eaten
+                {period.soFar ? 'kcal eaten so far' : 'kcal a day eaten'}
               </div>
             </>
           ) : (
             <div className="headline" style={{ fontSize: 26 }}>
-              {status.title}
+              {period.soFar ? soFarWords(avgEaten, [goalLo, goalHi]) : status.title}
             </div>
           )}
         </div>
@@ -44,7 +49,9 @@ export function BalanceBar({ period, status }: { period: PeriodData; status: Sta
         aria-label={
           showNumbers
             ? `Eaten ${fmt(avgEaten)} of ${fmt(end)} kcal. Goal ${fmt(goalLo)} to ${fmt(goalHi)}, maintenance ${fmt(avgBurn)}.`
-            : status.title
+            : period.soFar
+              ? soFarWords(avgEaten, [goalLo, goalHi])
+              : status.title
         }
       >
         <div className="ofill" style={{ width: `${pct(avgEaten)}%` }} />
@@ -62,7 +69,7 @@ export function BalanceBar({ period, status }: { period: PeriodData; status: Sta
           {endIsMaintenance ? 'maintenance' : 'goal max'}
         </span>
       </div>
-      {showNumbers && (
+      {showNumbers && !period.soFar && (
         <div className="gsub">
           {balanceText} kcal a day <span className={`gpill g-${status.kind}`}>{status.title}</span>
         </div>

@@ -169,9 +169,6 @@ textarea{width:100%;min-height:88px;border-radius:12px;border:1px solid var(--ou
 .sizes button[aria-pressed="true"]{background:var(--burn-cont);color:var(--on-burn-cont);font-weight:600}
 .sizes.slots{display:flex;align-self:stretch}
 .sizes.slots button{flex:1;min-width:0;height:40px;padding:0 4px}
-.slot{gap:4px}
-.slot+.slot{margin-top:8px}
-.slot-name{font-size:15px;font-weight:600}
 .stepper{display:flex;align-items:center;justify-content:center;gap:20px}
 .stepper button{width:56px;height:56px;border-radius:28px;border:0;background:var(--burn-cont);color:var(--on-burn-cont);font-size:26px;font-weight:600}
 .fld{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink2)}

@@ -4,7 +4,7 @@ import { QuickChips } from '../components/QuickChips'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
-import { eaten, fmt, mealSections, mealsOn, nowTime, slotForTime, SLOT_NAMES } from '../lib/model'
+import { eaten, fmt, mealsOn, nowTime, slotForTime, SLOT_NAMES } from '../lib/model'
 import { newId } from '../lib/ids'
 import { useApp } from '../state/AppContext'
 import type { Food, Meal } from '../types'
@@ -15,6 +15,7 @@ export function FuelView() {
   const isToday = diaryDate === today
   const meals = mealsOn(state.meals, diaryDate)
   const total = eaten(meals)
+  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
   const dayName = isToday ? 'Today' : diaryDate === addDays(today, -1) ? 'Yesterday' : weekdayLong(diaryDate)
 
   const quickAdd = (food: Food) => {
@@ -90,55 +91,47 @@ export function FuelView() {
             Share day
           </button>
         </div>
-        {mealSections(meals).map(({ slot, meals: slotMeals }, index) => (
-          <section className="col slot" key={slot + index} aria-label={SLOT_NAMES[slot]}>
-            <div className="row center">
-              <span className="slot-name">
-                {SLOT_NAMES[slot]}
-                {numbers && slotMeals.length > 0 && <span className="muted"> · {fmt(eaten(slotMeals))} kcal</span>}
-              </span>
-              <button className="tbtn link with-icon" onClick={() => openAddFood(slot)} aria-label={`Add to ${SLOT_NAMES[slot]}`}>
-                <PlusIcon size={18} />
-                Add
-              </button>
-            </div>
-            {slotMeals.length > 0 && (
-              <div className="list">
-                {slotMeals.map((meal) => {
-                  const saved = favs.some((f) => f.name === meal.name)
-                  return (
-                    <div className="item" key={meal.id}>
-                      <span className="muted" style={{ width: 42, fontSize: 13 }}>
-                        {meal.time}
-                      </span>
-                      <div className="main">
-                        <span className="nm">{meal.name}</span>
-                        <span className="pt">{meal.portion}</span>
-                      </div>
-                      {numbers && (
-                        <span className="num" style={{ fontSize: 15 }}>
-                          {fmt(meal.kcal)}
-                        </span>
-                      )}
-                      <button
-                        className="icon-btn"
-                        aria-pressed={saved}
-                        aria-label={saved ? 'Saved in My foods' : 'Save to My foods'}
-                        style={{ color: saved ? 'var(--burn)' : 'var(--muted)' }}
-                        onClick={() => toggleFav(meal)}
-                      >
-                        <StarIcon size={20} filled={saved} />
-                      </button>
-                      <button className="icon-btn" aria-label={`Remove ${meal.name}`} onClick={() => remove(meal)}>
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        ))}
+        {sorted.length ? (
+          <div className="list">
+            {sorted.map((meal) => {
+              const saved = favs.some((f) => f.name === meal.name)
+              return (
+                <div className="item" key={meal.id}>
+                  <span className="muted" style={{ width: 42, fontSize: 13 }}>
+                    {meal.time}
+                  </span>
+                  <div className="main">
+                    <span className="nm">{meal.name}</span>
+                    <span className="pt">
+                      {SLOT_NAMES[meal.slot]} · {meal.portion}
+                    </span>
+                  </div>
+                  {numbers && (
+                    <span className="num" style={{ fontSize: 15 }}>
+                      {fmt(meal.kcal)}
+                    </span>
+                  )}
+                  <button
+                    className="icon-btn"
+                    aria-pressed={saved}
+                    aria-label={saved ? 'Saved in My foods' : 'Save to My foods'}
+                    style={{ color: saved ? 'var(--burn)' : 'var(--muted)' }}
+                    onClick={() => toggleFav(meal)}
+                  >
+                    <StarIcon size={20} filled={saved} />
+                  </button>
+                  <button className="icon-btn" aria-label={`Remove ${meal.name}`} onClick={() => remove(meal)}>
+                    <TrashIcon />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="card">
+            <p>{isToday ? 'Nothing logged yet today.' : 'Nothing logged on this day.'}</p>
+          </div>
+        )}
       </div>
 
       {!state.dismissed.chips && (
@@ -165,6 +158,10 @@ export function FuelView() {
         </TipBox>
       )}
 
+      <button className="fab" onClick={() => openAddFood()}>
+        <PlusIcon />
+        Add food
+      </button>
     </>
   )
 }

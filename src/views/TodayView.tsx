@@ -4,17 +4,29 @@ import { TrendLine } from '../components/TrendLine'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
-import { eaten, goalLabel, mealsOn, periodData, planKcal, status, weekSummary } from '../lib/model'
+import { eaten, fmt, goalIntake, goalLabel, mealsOn, periodData, planKcal, status, weekSummary, type PeriodData } from '../lib/model'
 import { changeWords, formatChange, trendChange, trendSeries } from '../lib/weight'
 import { useApp } from '../state/AppContext'
-import type { Period } from '../types'
+import type { Goal, Period } from '../types'
 
 const PERIODS: [Period, string][] = [
+  ['today', 'Today'],
   ['week', 'Week'],
   ['month', 'Month'],
   ['year', 'Year'],
-  ['all', 'All'],
 ]
+
+/** The line under today's bar: what is left of the day's plan, never a verdict on the day. */
+function soFarText({ avgEaten, avgBurn }: PeriodData, goal: Goal, numbers: boolean): string {
+  const [lo, hi] = goalIntake(avgBurn, goal)
+  if (avgEaten < lo) {
+    return numbers
+      ? `About ${fmt(lo - avgEaten)}–${fmt(hi - avgEaten)} kcal left in today’s plan.`
+      : 'There’s room left in today’s plan for your next meals.'
+  }
+  if (avgEaten <= hi) return 'You’re within today’s plan.'
+  return 'Above today’s plan range. That’s fine: your weekly average is what counts.'
+}
 
 export function TodayView() {
   const { state, update, today, maint, burnOn, weighIns, openSheet } = useApp()
@@ -29,15 +41,13 @@ export function TodayView() {
   // Weight trend over the selected period (the week view looks back 7 days).
   const firstWeighIn = weighIns[0]?.date ?? today
   const trendFrom =
-    state.period === 'week'
+    state.period === 'week' || state.period === 'today'
       ? addDays(today, -6)
       : state.period === 'month'
         ? addDays(today, -29)
-        : state.period === 'year'
-          ? addDays(today, -364)
-          : firstWeighIn
+        : addDays(today, -364)
   const trendLabel =
-    state.period === 'week' ? 'past 7 days' : state.period === 'month' ? 'past 30 days' : state.period === 'year' ? 'past 12 months' : 'since your first weigh-in'
+    state.period === 'week' || state.period === 'today' ? 'past 7 days' : state.period === 'month' ? 'past 30 days' : 'past 12 months'
   const trend = trendSeries(weighIns, trendFrom < firstWeighIn ? firstWeighIn : trendFrom, today)
   const change = trendChange(trend)
 
@@ -116,7 +126,7 @@ export function TodayView() {
         ) : (
           <>
             <BalanceBar period={period} status={periodStatus} />
-            <p>{periodStatus.text.replace('this week', period.phrase)}</p>
+            <p>{period.soFar ? soFarText(period, goal, numbers) : periodStatus.text.replace('this week', period.phrase)}</p>
           </>
         )}
       </section>

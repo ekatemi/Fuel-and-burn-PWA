@@ -35,7 +35,6 @@ export const weekdayLong = (key: string) => format(parseKey(key), { weekday: 'lo
 export const weekdayShort = (key: string) => format(parseKey(key), { weekday: 'short' })
 export const monthDay = (key: string) => format(parseKey(key), { month: 'short', day: 'numeric' })
 export const monthShort = (d: Date) => format(d, { month: 'short' })
-export const monthYear = (d: Date) => format(d, { month: 'long', year: 'numeric' })
 
 /** Today's key, kept current when midnight passes or the app comes back to the foreground. */
 export function useToday() {

@@ -29,7 +29,7 @@ This is not a professional or competitive tool. It must never encourage restrict
 Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is a detail screen opened from Today.
 
 **Today** (answer at a glance):
-1. Period selector: Week / Month / Year / All.
+1. Period selector: Today / Week / Month / Year (Week by default; "All" was dropped as it added nothing over Year). Today shows kcal eaten so far against the day's plan range and what is left of it; no daily deficit or status pill, since the day isn't over.
 2. Goal chip, e.g. "🎯 Lose fat · Gentle", which opens the goal sheet.
 3. One horizontal bar from 0 to the scale end:
    - scale end = max(maintenance, top of goal range): maintenance for Lose fat, goal max for Build muscle;
@@ -45,8 +45,8 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 No macros on Today.
 
 **Fuel**: kcal today; macros and fiber (Protein, Fat, Carbs, Fiber) as bars relative to the user's targets, with an "Edit targets" button; Quick add; list of logged food; tips.
-- Logged food is grouped by meal (`mealSections`), each section with its kcal and an "Add" button; there is no Add food FAB on Fuel. Breakfast, Lunch and Dinner are always shown, in that order. Snacks sit where they happened in time: after the main meal begun before them, so a snack after dinner comes after Dinner. With no snack yet, an empty Snack section comes last.
-- Add food has a meal picker; the default is the meal opened from, else the usual one for the time of day (`slotForTime`). Quick add uses the time of day too.
+- Logged food is one list by time, each item showing its meal (Breakfast, Lunch, Dinner, Snack). An "Add food" FAB opens Add food.
+- Add food has a meal picker; the default is the usual meal for the time of day (`slotForTime`). Quick add uses the time of day too.
 - Macro status: "n g to go" / "✓ on target" / "✓ +n g extra". Calm view: "room for more" / "almost there" / "target reached".
 - Targets sheet shows whether protein, fat and carbs add up to the calorie plan (±150 kcal) and gently says if not.
 - Quick add has two parts. **My foods**: user-saved items, created via "+ New" or the ★ on any logged item. **Often in your diary**: items logged at least twice, top 5, no duplicates with My foods.

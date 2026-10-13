@@ -8,7 +8,7 @@ import { newId } from '../lib/ids'
 import type { AppState } from '../types'
 import { emptySync, type SyncMeta } from './sync'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export interface StoredDoc {
   schemaVersion: number
@@ -44,6 +44,12 @@ const MIGRATIONS: Record<number, (doc: Raw) => Raw> = {
     ...doc,
     schemaVersion: 3,
     state: { ...doc.state, meals: (doc.state.meals as Raw[]).map((m) => (m.slot ? m : { ...m, slot: slotForTime(m.time) })) },
+  }),
+  // v3: the "All" period is gone; Year shows the same thing.
+  3: (doc) => ({
+    ...doc,
+    schemaVersion: 4,
+    state: { ...doc.state, period: doc.state.period === 'all' ? 'year' : doc.state.period },
   }),
 }
 
