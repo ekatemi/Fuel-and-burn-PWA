@@ -77,6 +77,7 @@ Pipeline: raw weight → remove obvious anomalies → 7-day smoothing → weight
 - Blend: estimate = (1 − α) × formula + α × observed; α grows with the amount of good data.
 - One strange week must not move the baseline: flag it as an anomaly instead.
 - 7700 kcal/kg is an approximation. Always show ranges ("1,820–1,930"), never false precision.
+- Implemented in `src/lib/tdee.ts`: each of the last 4 full weeks (with food on ≥4 days and trend weight at both ends) gives an observed burn; α = 0.8 × good weeks / 4. A week >35% from the formula, or (with ≥3 weeks) >20% from their median, is flagged unusual and left out. Days with under half the formula logged count as incomplete and are skipped, so forgotten meals never pull maintenance (and the plan) down. The range narrows from ±10% to ±5% as α grows.
 
 ## Activity (manual entry for now)
 

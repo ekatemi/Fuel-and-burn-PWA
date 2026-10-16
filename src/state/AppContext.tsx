@@ -3,6 +3,7 @@ import { freshState } from '../data/demo'
 import { useToday } from '../lib/dates'
 import { newId } from '../lib/ids'
 import { dayBurn, maintenance, nowTime, toMeal } from '../lib/model'
+import { learnMaintenance, type MaintenanceEstimate } from '../lib/tdee'
 import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
 import type { AppState, KnownItem, MealSlot, SheetName } from '../types'
 import { freshDoc, type StoredDoc } from './schema'
@@ -36,8 +37,10 @@ interface AppContextValue {
   bodyWeight: number
   /** Body fat % from logged readings, or null when none were logged. */
   bodyFatPct: number | null
-  /** Estimated kcal burned a day, from the profile, body weight and body fat if logged. */
+  /** Estimated kcal burned a day: the formula estimate, moved towards what the diary and weight trend show. */
   maint: number
+  /** How maint was reached: its range, the formula it started from and how much data it learned from. */
+  maintEstimate: MaintenanceEstimate | null
   /** Burn for a day: maintenance adjusted for that day's logged activity. */
   burnOn: (date: string) => number
   /** The day shown in the Fuel diary. */
@@ -126,7 +129,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const trendWeight = trendOn(weighIns, today)
     const bodyWeight = trendWeight ?? state.weight
     const bodyFatPct = currentBodyFat(state.bodyFat)
-    const maint = state.profile ? maintenance(state.profile, bodyWeight, bodyFatPct) : DEFAULT_MAINT
+    const maintEstimate = state.profile
+      ? learnMaintenance(state.meals, weighIns, today, maintenance(state.profile, bodyWeight, bodyFatPct))
+      : null
+    const maint = maintEstimate?.kcal ?? DEFAULT_MAINT
 
     return {
       state,
@@ -139,6 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       bodyWeight,
       bodyFatPct,
       maint,
+      maintEstimate,
       burnOn: (date) => dayBurn(maint, state.meals, state.activities, date),
       diaryDate: pickedDate && pickedDate < today ? pickedDate : today,
       setDiaryDate: (date) => setPickedDate(date < today ? date : null),

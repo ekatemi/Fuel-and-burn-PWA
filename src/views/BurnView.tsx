@@ -2,15 +2,14 @@ import { ChevronIcon, PlusIcon, TrashIcon } from '../components/Icons'
 import { TopBar } from '../components/TopBar'
 import { describeActivity } from '../lib/activityLabels'
 import { longLabel } from '../lib/dates'
-import { activitiesOn, activityKcal, fmt, r10, restingBurn, typicalActivityKcal } from '../lib/model'
+import { activitiesOn, activityKcal, fmt, restingBurn, typicalActivityKcal } from '../lib/model'
 import { useApp } from '../state/AppContext'
 import type { ActivityEntry } from '../types'
 
-// Formula estimates are typically within about 10% of a person's real burn.
-const FORMULA_ERROR = 0.1
+const weeks = (n: number) => (n === 1 ? 'one week' : `${n} weeks`)
 
 export function BurnView() {
-  const { state, today, maint, bodyWeight, bodyFatPct, burnOn, update, openSheet, showToast } = useApp()
+  const { state, today, maint, maintEstimate, bodyWeight, bodyFatPct, burnOn, update, openSheet, showToast } = useApp()
   const { numbers, profile } = state
   const resting = profile ? Math.min(maint, Math.round(restingBurn(profile, bodyWeight, bodyFatPct))) : maint
   const todays = activitiesOn(state.activities, today)
@@ -23,6 +22,8 @@ export function BurnView() {
     { key: 'act', name: 'Daily activity', note: 'moving around on a usual day', kcal: Math.max(0, total - resting - logged) },
     { key: 'sport', name: 'Logged activity', note: todays.length ? `${todays.length} today` : 'nothing logged today', kcal: logged },
   ]
+  const learned = maintEstimate?.goodWeeks ?? 0
+  const unusual = maintEstimate?.unusualWeeks ?? 0
   const partsTotal = parts.reduce((a, p) => a + p.kcal, 0) || 1
 
   const remove = (entry: ActivityEntry) => {
@@ -43,20 +44,27 @@ export function BurnView() {
                 kcal a day
               </span>
             </div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              Likely between {fmt(r10(maint * (1 - FORMULA_ERROR)))} and {fmt(r10(maint * (1 + FORMULA_ERROR)))}
-            </div>
+            {maintEstimate && (
+              <div className="muted" style={{ fontSize: 13 }}>
+                Likely between {fmt(maintEstimate.low)} and {fmt(maintEstimate.high)}
+              </div>
+            )}
           </>
         ) : (
           <div className="headline" style={{ color: 'var(--hero-ink)' }}>
-            Estimated from your profile
+            {learned ? 'Learned from your diary' : 'Estimated from your profile'}
           </div>
         )}
         <span className="muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-          {bodyFatPct != null
-            ? 'Based on your lean mass (trend weight and logged body fat) and activity level.'
-            : 'Based on your sex, age, height, trend weight and activity level.'}{' '}
-          It follows your weight trend as you log weigh-ins.
+          {learned
+            ? `Learned from ${weeks(learned)} of your food and weight trend, together with the estimate from your profile.`
+            : bodyFatPct != null
+              ? 'Based on your lean mass (trend weight and logged body fat) and activity level.'
+              : 'Based on your sex, age, height, trend weight and activity level.'}{' '}
+          {learned
+            ? learned < 4 && 'It gets more personal with each week you log.'
+            : 'After a week of logged food and weigh-ins, it starts learning from your own data.'}
+          {unusual > 0 && ` ${unusual === 1 ? 'One week' : `${unusual} weeks`} looked unusual and ${unusual === 1 ? 'was' : 'were'} left out.`}
           {bodyFatPct == null &&
             Object.keys(state.bodyFat).length === 1 &&
             ' One more body fat reading and it will use your lean mass instead.'}
@@ -152,8 +160,15 @@ export function BurnView() {
           log your body fat at least twice, we use the Katch–McArdle formula instead, which works from lean mass and suits people
           with more or less muscle than average. We multiply
           it by a factor for your activity level to get what you burn on a typical day. It is an estimate: two people
-          with the same numbers can differ by around 10%, so treat it as a starting point and watch how your weight
-          trend actually moves.
+          with the same numbers can differ by around 10%, so it is only the starting point.
+        </p>
+        <p>
+          Then it learns from you. For each of the last four weeks with food logged on at least four days and
+          weigh-ins around it, we take what you ate on average and correct it by how your weight trend moved, at
+          about 7,700 kcal per kg: if your trend went down, you burned more than you ate. Each such week shifts your
+          maintenance a little further from the formula towards your own number. A week that looks very different
+          from the others, say after a holiday or a stomach bug, is left out, so one strange week doesn’t move it.
+          Days with little or nothing logged are taken as incomplete and don’t count.
         </p>
         <p>
           Logged activity counts only the energy above resting. Steps are turned into distance from your height, then
