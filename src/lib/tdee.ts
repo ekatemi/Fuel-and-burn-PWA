@@ -12,7 +12,7 @@ import type { Meal } from '../types'
 export const KCAL_PER_KG = 7700
 
 /** Full weeks looked at, counting back from yesterday (today isn't over yet). */
-const WEEKS = 4
+export const WEEKS = 4
 /** A week needs food logged on this many days to say anything about intake. */
 const MIN_LOGGED_DAYS = 4
 /**

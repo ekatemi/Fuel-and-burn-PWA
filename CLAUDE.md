@@ -52,7 +52,7 @@ No macros on Today.
 - Targets sheet shows whether protein, fat and carbs add up to the calorie plan (±150 kcal) and gently says if not.
 - Quick add has two parts. **My foods**: user-saved items, created via "+ New" or the ★ on any logged item. **Often in your diary**: items logged at least twice, top 5, no duplicates with My foods.
 
-**Burn**: maintenance with range and confidence; today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
+**Burn**: maintenance with range and confidence (no accuracy percentages: there is no ground truth to measure them against; instead a learning row, "Estimate from your profile" → "Learning from your data · 2 of 4 weeks" → "Tuned to you", with one dot per week); today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
 
 **Trends**: weight trend (7-day smoothing, unusual readings left out), optional body fat trend, fat mass vs lean mass, expected vs actual change. No weekly balance chart: the balance lives on Today.
 - Expected vs actual (`expectedVsActual` in `tdee.ts`): over the same weeks as the maintenance estimate, the change the food diary predicts (daily balance against `burnOn` × 7 / 7700) next to the trend change. Within 0.15 kg a week counts as "about as expected". A higher result is never a reason to eat less: the text says water, salt and unlogged snacks play a part and the estimate adjusts.

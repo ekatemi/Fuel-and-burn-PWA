@@ -3,10 +3,26 @@ import { TopBar } from '../components/TopBar'
 import { describeActivity } from '../lib/activityLabels'
 import { longLabel } from '../lib/dates'
 import { activitiesOn, activityKcal, fmt, restingBurn, typicalActivityKcal } from '../lib/model'
+import { WEEKS } from '../lib/tdee'
 import { useApp } from '../state/AppContext'
 import type { ActivityEntry } from '../types'
 
-const weeks = (n: number) => (n === 1 ? 'one week' : `${n} weeks`)
+/** Where the estimate stands: from the profile, learning, or based mostly on the person's own data. */
+function learningLabel(weeks: number) {
+  if (!weeks) return 'Estimate from your profile'
+  return weeks < WEEKS ? 'Learning from your data' : 'Tuned to you'
+}
+
+/** One dot per week the estimate can learn from, filled for the weeks it did. */
+function LearningDots({ weeks }: { weeks: number }) {
+  return (
+    <span className="dots" aria-hidden="true">
+      {Array.from({ length: WEEKS }, (_, i) => (
+        <span key={i} className={i < weeks ? 'on' : undefined} />
+      ))}
+    </span>
+  )
+}
 
 export function BurnView() {
   const { state, today, maint, maintEstimate, bodyWeight, bodyFatPct, burnOn, update, openSheet, showToast } = useApp()
@@ -52,18 +68,27 @@ export function BurnView() {
           </>
         ) : (
           <div className="headline" style={{ color: 'var(--hero-ink)' }}>
-            {learned ? 'Learned from your diary' : 'Estimated from your profile'}
+            {learningLabel(learned)}
           </div>
         )}
+        <div className="learning">
+          <span>
+            {numbers && <b>{learningLabel(learned)}</b>}
+            {numbers && learned > 0 && ' · '}
+            {(learned > 0 || !numbers) && `${learned} of ${WEEKS} weeks`}
+          </span>
+          <LearningDots weeks={learned} />
+        </div>
         <span className="muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-          {learned
-            ? `Learned from ${weeks(learned)} of your food and weight trend, together with the estimate from your profile.`
-            : bodyFatPct != null
-              ? 'Based on your lean mass (trend weight and logged body fat) and activity level.'
-              : 'Based on your sex, age, height, trend weight and activity level.'}{' '}
-          {learned
-            ? learned < 4 && 'It gets more personal with each week you log.'
-            : 'After a week of logged food and weigh-ins, it starts learning from your own data.'}
+          {!learned
+            ? `${
+                bodyFatPct != null
+                  ? 'Based on your lean mass (trend weight and logged body fat) and activity level.'
+                  : 'Based on your sex, age, height, trend weight and activity level.'
+              } Log food on most days and weigh in a few times a week: after about a week it starts learning what you really burn.`
+            : learned < WEEKS
+              ? 'Your food diary and weight trend, blended with the estimate from your profile. Each full week you log makes it more yours.'
+              : 'Based mostly on your own food diary and weight trend over the last four weeks, and it keeps following them.'}
           {unusual > 0 && ` ${unusual === 1 ? 'One week' : `${unusual} weeks`} looked unusual and ${unusual === 1 ? 'was' : 'were'} left out.`}
           {bodyFatPct == null &&
             Object.keys(state.bodyFat).length === 1 &&

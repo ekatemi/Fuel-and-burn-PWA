@@ -239,3 +239,8 @@ svg text{font-family:var(--body)}
 .check input{flex:none;width:24px;height:24px;margin:0;accent-color:var(--burn)}
 .check input:focus-visible{outline:3px solid var(--burn);outline-offset:2px}
 .check + .check{margin-top:-14px}
+.hero .learning{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--hero-muted)}
+.hero .learning b{color:var(--hero-ink);font-weight:600}
+.hero .dots{display:flex;gap:6px;flex:none}
+.hero .dots span{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--hero-muted)}
+.hero .dots span.on{background:var(--hero-ink);border-color:var(--hero-ink)}
