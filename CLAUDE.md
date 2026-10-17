@@ -112,7 +112,7 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - Provide **export and import** (JSON), since browser data can be cleared.
 - Weight, body fat, food and activity are health data under GDPR. Requires explicit, separate consent at onboarding (unticked by default), 18+ only, "delete all my data" in settings.
 - Done: onboarding opens with "Before you start": two unticked boxes (18 or older; health data kept on the device, food sent to the AI provider) and the not-medical-advice note. `state.consent` keeps when they were ticked; without it the app shows only that screen (data from before v5 is asked once, or can be deleted). Sample data and restore need the boxes too. "Delete all my data" is in the ⋮ menu.
-- Privacy policy draft: `public/privacy.html` (served as `privacy.html`, linked from onboarding and the ⋮ menu). Keep it in sync with what the app does (no Health Connect while it is a PWA; food photos and the AI provider). Placeholders `[...]` (name, contact, hosting, log retention, transfer basis, supervisory authority) and the draft banner go before publishing.
+- Privacy policy: `public/privacy.html` (served as `privacy.html`, linked from onboarding and the ⋮ menu). Controller Ekaterina Mikhaylova, Barcelona; contact info@mikhaylova.dev; hosting Hetzner (Germany); AEPD as authority. Keep it in sync with what the app does (no Health Connect while it is a PWA; food photos and the AI provider) and update its date.
 - No analytics or ad SDKs without consent.
 
 ## Platform roadmap
