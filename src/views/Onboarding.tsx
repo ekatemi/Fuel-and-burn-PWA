@@ -3,6 +3,7 @@ import { goalChangeText, GoalPicker } from '../components/GoalPicker'
 import { EMPTY_PROFILE, parseProfile, ProfileFields } from '../components/ProfileFields'
 import { sampleState } from '../data/demo'
 import { fmt, goalIntake, maintenance, planKcal, suggestedTargets } from '../lib/model'
+import { PRIVACY_URL } from '../lib/links'
 import { useApp } from '../state/AppContext'
 import { useBackup } from '../state/backup'
 import type { Consent, Goal } from '../types'
@@ -34,7 +35,10 @@ function ConsentFields({ draft, onChange }: { draft: ConsentDraft; onChange: (dr
         <span>
           I agree that Fuel & Burn keeps my health data (weight, body fat, food and activity) on this device to estimate
           my burn and show my trend. Food I type, say or photograph for recognition is sent to an AI service without my
-          name or other details. I can delete everything at any time from the menu.
+          name or other details. I can delete everything at any time from the menu.{' '}
+          <a href={PRIVACY_URL} target="_blank" rel="noopener">
+            Privacy policy
+          </a>
         </span>
       </label>
       <p className="muted" style={{ fontSize: 13, margin: 0 }}>

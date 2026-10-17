@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#E9ECEF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1114" media="(prefers-color-scheme: dark)" />
+    <title>Privacy policy · Fuel & Burn</title>
+    <!--
+      DRAFT. Keep in sync with what the app does (see CLAUDE.md, "Data and privacy").
+      Before publishing, fill in everything marked as a placeholder ([...]), then remove the draft banner.
+    -->
+    <style>
+      :root {
+        --bg: #e9ecef;
+        --surface: #fff;
+        --ink: #15181c;
+        --ink2: #4a5058;
+        --burn: #2a47c9;
+        --draft: #fdf1d8;
+        --draft-ink: #6b4a00;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1114;
+          --surface: #1a1d21;
+          --ink: #eceef0;
+          --ink2: #a9afb7;
+          --burn: #9fb1ff;
+          --draft: #3a2f14;
+          --draft-ink: #f3d79a;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; }
+      h1 { font-size: 28px; line-height: 1.2; margin: 8px 0 4px; }
+      h2 { font-size: 19px; margin: 32px 0 8px; }
+      p, li { color: var(--ink2); }
+      strong { color: var(--ink); }
+      a { color: var(--burn); }
+      ul { padding-left: 20px; }
+      li { margin: 4px 0; }
+      .card { background: var(--surface); border-radius: 22px; padding: 4px 20px 12px; margin-top: 16px; }
+      .card h2 { margin-top: 20px; }
+      .draft { background: var(--draft); color: var(--draft-ink); border-radius: 16px; padding: 12px 16px; font-size: 14px; }
+      .ph { background: var(--draft); color: var(--draft-ink); border-radius: 4px; padding: 0 4px; }
+      .back { display: inline-block; min-height: 48px; padding: 12px 0; text-decoration: none; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="./">← Back to Fuel & Burn</a>
+      <p class="draft"><strong>Draft.</strong> This policy is not final yet. Parts marked like <span class="ph">[this]</span> are still to be filled in.</p>
+      <h1>Privacy policy</h1>
+      <p>Fuel & Burn · Last updated <span class="ph">[date]</span></p>
+
+      <div class="card">
+        <h2>In short</h2>
+        <ul>
+          <li><strong>Your diary stays on your phone.</strong> Your profile, weight, body fat, food and activity are saved only on your device. There is no account and no server copy.</li>
+          <li><strong>Only food you ask the app to recognise leaves your device:</strong> the text, voice note or photo, sent to an AI service, without your name, weight or anything else about you. Neither the app nor our relay keeps it.</li>
+          <li><strong>No ads, no analytics, no tracking.</strong> Nothing is sold or shared for marketing.</li>
+          <li><strong>You can delete everything at any time</strong> with “Delete all my data” in the ⋮ menu.</li>
+        </ul>
+      </div>
+
+      <h2>Who is responsible</h2>
+      <p>
+        Fuel & Burn is a free personal project by <span class="ph">[full name]</span>, <span class="ph">[city, country]</span>,
+        who is the data controller for the little personal data that reaches a server. Questions or requests:
+        <span class="ph">[contact email]</span>.
+      </p>
+
+      <h2>What stays on your device</h2>
+      <p>To estimate your burn and show your trend, the app saves on your device, in the browser’s storage for this site:</p>
+      <ul>
+        <li>your profile: sex, age, height and activity level;</li>
+        <li>weigh-ins and, if you log them, body fat readings;</li>
+        <li>the food and activity you log, your saved foods, your goal and targets;</li>
+        <li>your settings, such as calm view, and a record of when you agreed to this policy.</li>
+      </ul>
+      <p>
+        Weight, body fat, food and activity are data about your health. They are not sent anywhere, and we cannot see them.
+        The calculations (resting burn, maintenance, trends) all run on your device.
+      </p>
+      <p>
+        Because the data lives only in this browser, clearing the site’s data, uninstalling the app or losing your phone
+        removes it. “Export backup” saves a copy as a file you choose where to keep; a backup you store in a cloud drive or
+        send to yourself is then under that service’s terms.
+      </p>
+
+      <h2>What is sent when you use food recognition</h2>
+      <p>Recognition is optional; you can always search the food list or use your saved foods instead. When you tap “Recognize”, “Speak” or “Camera”:</p>
+      <ul>
+        <li><strong>Text:</strong> what you typed about your meal.</li>
+        <li><strong>Voice:</strong> a recording of up to 30 seconds, made only after you tap “Speak”, turned into text and then treated like typed text.</li>
+        <li><strong>Photo:</strong> the photo you take or pick, made smaller on your device first (about 768 pixels), with any note you typed about it.</li>
+      </ul>
+      <p>
+        This goes over an encrypted connection to a small relay we run on Cloudflare Workers, which passes it to
+        OpenAI’s API and returns a list of foods and amounts. The calories are then looked up on your device in the food table.
+        Nothing about you is sent with it: no name, no weight, no diary.
+      </p>
+      <p>
+        <strong>What is kept:</strong> the relay does not store your text, audio or photos. The app does not keep the
+        recording or the photo either. OpenAI processes them on our behalf; under its API terms it does not use them to
+        train its models and may keep them for up to 30 days to detect abuse before deleting them.
+        Please don’t include other people’s faces or personal details in food photos.
+      </p>
+
+      <h2>What servers see when you open the app</h2>
+      <ul>
+        <li>
+          <strong>Website hosting.</strong> The app’s files come from our server at <span class="ph">[hosting provider, country]</span>
+          through Cloudflare. Like any website, they see your IP address, browser type and the pages requested, kept in server
+          logs for <span class="ph">[n days]</span> to keep the site running and secure.
+        </li>
+        <li>
+          <strong>Fair-use limit on recognition.</strong> To prevent abuse, the relay counts recognition requests per day
+          under a shortened, scrambled (hashed) form of your IP address. The count is deleted automatically after two days and
+          is not linked to anything else.
+        </li>
+      </ul>
+      <p>The app uses no cookies. Its fonts and food table are part of the app, so they are not fetched from other sites.</p>
+
+      <h2>Why we may use it (legal bases)</h2>
+      <ul>
+        <li><strong>Your explicit consent</strong> (GDPR Art. 6(1)(a) and 9(2)(a)) for health data and food recognition, given in the app before you start. You can withdraw it at any time by deleting your data; this doesn’t affect anything done before.</li>
+        <li><strong>Legitimate interests</strong> (Art. 6(1)(f)) for server logs and the fair-use limit: keeping the service working, secure and affordable.</li>
+      </ul>
+
+      <h2>Other companies involved</h2>
+      <ul>
+        <li><strong>Cloudflare, Inc.</strong>: delivers the site and runs the recognition relay.</li>
+        <li><strong>OpenAI, L.L.C.</strong>: turns food text, voice and photos into a list of foods.</li>
+        <li><span class="ph">[hosting provider]</span>: hosts the app’s files.</li>
+      </ul>
+      <p>
+        Cloudflare and OpenAI are based in the United States, so food sent for recognition and connection data may be
+        processed there. These transfers are covered by <span class="ph">[the EU–US Data Privacy Framework and/or the EU Standard Contractual Clauses in each provider’s data processing agreement — check]</span>.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>Most of these you can use straight from the app, since your data is on your device:</p>
+      <ul>
+        <li><strong>See and take your data:</strong> “Export backup” gives you all of it as a JSON file.</li>
+        <li><strong>Correct it:</strong> edit your profile, weigh-ins and diary entries in the app.</li>
+        <li><strong>Delete it:</strong> “Delete all my data” in the ⋮ menu erases everything on the device.</li>
+        <li><strong>Withdraw consent:</strong> delete your data and stop using the app, or simply don’t use food recognition.</li>
+      </ul>
+      <p>
+        You also have the right to object, to restrict processing and to complain to a data protection authority, for
+        example <span class="ph">[supervisory authority in your country, with link]</span> or the one where you live. We can’t
+        look up or delete data on your behalf because we never receive it; for anything else, write to
+        <span class="ph">[contact email]</span>.
+      </p>
+
+      <h2>Who it’s for</h2>
+      <p>Fuel & Burn is for adults, 18 and over. We don’t knowingly collect data from anyone younger.</p>
+
+      <h2>Not medical advice</h2>
+      <p>
+        Fuel & Burn is a wellness app. Its estimates are approximate and are not medical advice. If you have a health
+        condition, are pregnant, or have had difficulties with eating, talk to a doctor before changing how you eat.
+      </p>
+
+      <h2>Other apps and devices</h2>
+      <p>
+        As a web app, Fuel & Burn can’t read data from other health apps, watches or scales, and doesn’t share data with
+        them. If that changes, for example in an Android version, this policy will say so before it happens.
+      </p>
+
+      <h2>Security</h2>
+      <p>
+        The app is served only over HTTPS. The key for the AI service stays on the relay and is never part of the app.
+        Your diary is protected by your device’s own lock and the browser’s separation between sites; anyone who can
+        unlock your phone and open the app can see it.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        If this policy changes in a way that matters, for example new data leaving your device, the app will tell you
+        and ask again where consent is needed. The date at the top shows the latest version.
+      </p>
+    </main>
+  </body>
+</html>

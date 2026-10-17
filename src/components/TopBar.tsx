@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PRIVACY_URL } from '../lib/links'
 import { useApp } from '../state/AppContext'
 import { useBackup } from '../state/backup'
 import { BackIcon, MoreIcon, WatchIcon } from './Icons'
@@ -101,6 +102,9 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
             })}
           >
             Delete all my data
+          </button>
+          <button role="menuitem" onClick={pick(() => window.open(PRIVACY_URL, '_blank', 'noopener'))}>
+            Privacy policy
           </button>
           <button role="menuitem" onClick={pick(() => showToast('Fuel & Burn. A wellness app, not medical advice. Your data stays on this device.'))}>
             About
