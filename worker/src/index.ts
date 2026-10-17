@@ -229,7 +229,8 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: cors(allowed) })
     if (!allowed) return json({ error: 'forbidden' }, 403, null)
-    const route = ROUTES[new URL(request.url).pathname]
+    // Served at workers.dev ("/parse-food") and on the site's own domain ("/fuel/api/parse-food").
+    const route = ROUTES['/' + new URL(request.url).pathname.split('/').pop()]
     if (request.method !== 'POST' || !route) return json({ error: 'not_found' }, 404, allowed)
 
     const input = await route.read(request)

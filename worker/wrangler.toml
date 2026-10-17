@@ -4,6 +4,12 @@ name = "fuel-ai"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
+# Also on the site's own domain: in Spain, ISPs block Cloudflare's shared workers.dev addresses during
+# LaLiga matches, while the site's addresses stay reachable. Same domain as the app, so AI works whenever the app loads.
+routes = [{ pattern = "mikhaylova.dev/fuel/api/*", zone_name = "mikhaylova.dev" }]
+# Kept for installed copies of the app from before the move.
+workers_dev = true
+
 [vars]
 # Pages allowed to call the proxy, besides local dev servers.
 ALLOWED_ORIGINS = "https://mikhaylova.dev"
