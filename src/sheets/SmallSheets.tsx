@@ -112,7 +112,12 @@ export function WeightSheet() {
       bodyFat: fat.trim() ? { ...s.bodyFat, [today]: pct } : s.bodyFat,
     }))
     closeSheet()
-    showToast('Saved. Your trend updates as the week goes on.')
+    // The first few times, say why one reading isn't the answer.
+    showToast(
+      Object.keys(state.weighIns).length < 3
+        ? 'Saved. One reading can move by a kilo with water and food; the trend smooths that out.'
+        : 'Saved. Your trend updates as the week goes on.',
+    )
   }
 
   return (

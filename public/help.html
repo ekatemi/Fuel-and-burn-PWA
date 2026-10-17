@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#E9ECEF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1114" media="(prefers-color-scheme: dark)" />
+    <title>How it works · Fuel & Burn</title>
+    <!-- Keep in sync with what the app does and how it calculates (see CLAUDE.md). Plain words, no numbers that change. -->
+    <style>
+      :root {
+        --bg: #e9ecef;
+        --surface: #fff;
+        --ink: #15181c;
+        --ink2: #4a5058;
+        --burn: #2a47c9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1114;
+          --surface: #1a1d21;
+          --ink: #eceef0;
+          --ink2: #a9afb7;
+          --burn: #9fb1ff;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; }
+      h1 { font-size: 28px; line-height: 1.2; margin: 8px 0 4px; }
+      h2 { font-size: 19px; margin: 32px 0 8px; }
+      p, li { color: var(--ink2); }
+      strong { color: var(--ink); }
+      a { color: var(--burn); }
+      ul { padding-left: 20px; }
+      li { margin: 4px 0; }
+      .card { background: var(--surface); border-radius: 22px; padding: 4px 20px 12px; margin-top: 16px; }
+      .card h2 { margin-top: 20px; }
+      dt { font-weight: 600; margin-top: 10px; }
+      dd { margin: 2px 0 0; color: var(--ink2); }
+      .back { display: inline-block; min-height: 48px; padding: 12px 0; text-decoration: none; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="./">← Back to Fuel & Burn</a>
+      <h1>How it works</h1>
+      <p>Fuel & Burn answers one question: are you eating less or more than you burn, by how much, and where is your body heading? Everything else supports that.</p>
+
+      <div class="card">
+        <h2>Getting started</h2>
+        <ul>
+          <li><strong>Log what you eat on most days.</strong> Rough is fine. A day that's half logged helps less than you'd think, so it's worth adding the snacks too.</li>
+          <li><strong>Weigh in on a few mornings a week</strong>, after the toilet and before eating or drinking.</li>
+          <li><strong>After about a week</strong>, the app starts learning what you really burn. The more weeks you log, the better your numbers fit you.</li>
+        </ul>
+      </div>
+
+      <h2>Why the week, not the day</h2>
+      <p>
+        Your body doesn't settle up every evening. A bigger day followed by ordinary ones averages out, and that average
+        is what moves your weight. So Today shows your average per day over the week (or the past 30 days, or the year).
+        A bigger day is never a reason to eat less the next day: just eat as usual.
+      </p>
+
+      <h2>Reading the bar on Today</h2>
+      <dl>
+        <dt>Orange fill</dt>
+        <dd>What you ate on average per day in the period. Today itself joins the average once the day is over.</dd>
+        <dt>Green zone</dt>
+        <dd>Your goal range: how much to eat for the goal and pace you chose.</dd>
+        <dt>Blue tick</dt>
+        <dd>Your maintenance, when it isn't the end of the bar: what you'd eat to stay the same.</dd>
+        <dt>The line under it</dt>
+        <dd>
+          The difference from maintenance, and where it sits: <strong>On target</strong>, <strong>A bit under your goal</strong>,
+          <strong>Lighter deficit than planned</strong>, or <strong>More than planned</strong> when you're eating a lot less than
+          your plan. That last one is a nudge to eat more: a deficit bigger than planned costs muscle and energy.
+        </dd>
+      </dl>
+
+      <h2>Your weight trend</h2>
+      <p>
+        One weigh-in can move by a kilo with water, salt, food in your stomach or your cycle. The trend line is the
+        average of the past seven days, so those swings even out. A reading that's far from the ones around it is shown
+        but left out of the trend. Watch the line over weeks, not the number on a single morning.
+      </p>
+
+      <h2>Your maintenance</h2>
+      <p>
+        Maintenance is how much you burn on a usual day. It starts as an estimate from your sex, age, height, weight and
+        activity level (the Mifflin–St Jeor formula, or Katch–McArdle once you log body fat twice). Formulas are often off
+        by around 10% for a given person, so that's only the start.
+      </p>
+      <p>
+        Then it learns. For each full week with food on most days and weigh-ins around it, the app compares what you ate
+        with how your weight trend moved. If you ate about the same and your trend went down, you burned more than the
+        formula thought. Each such week moves the estimate towards your own number. On Burn, the dots show how many of
+        the last four weeks it learned from:
+      </p>
+      <ul>
+        <li><strong>Estimate from your profile</strong>: the formula only, for now.</li>
+        <li><strong>Learning from your data</strong>: your weeks blended with the formula.</li>
+        <li><strong>Tuned to you</strong>: mostly your own data, and it keeps following it.</li>
+      </ul>
+      <p>
+        You'll always see a range, never a single exact number, because no app can know your burn to the calorie. Days
+        with very little logged are treated as incomplete and skipped, so a forgotten meal never makes your plan smaller.
+        A week that looks very different from the others, say a holiday or a stomach bug, is left out.
+      </p>
+
+      <h2>Goals and paces</h2>
+      <p>
+        <strong>Lose fat</strong> is a deficit of 10–15% of maintenance (Gentle) or 15–20% (Steady). <strong>Maintain</strong>
+        is within 5%. <strong>Build muscle</strong> is a surplus of 5–10% or 10–15%, which works with strength training.
+        There's no faster pace on purpose: bigger deficits cost muscle and are hard to keep up. Your plan never goes below
+        your estimated resting burn.
+      </p>
+
+      <h2>Activity</h2>
+      <p>
+        Your usual activity is already part of your maintenance. So when you log a walk, a run or a workout, only the
+        difference from a typical day changes your balance, not the whole thing. That stops the same steps being counted
+        twice. Activity numbers are rough, around ±20%, and shown as “~215”.
+      </p>
+
+      <h2>Fuel: protein, fat, carbs and fiber</h2>
+      <p>
+        The bars show each against your targets. Going past a target is information, not a mistake: it shows as
+        “+12 g extra”. Protein matters most while losing fat, since it helps keep muscle. You can change the targets with
+        “Edit targets”; the sheet tells you if they don't add up to your calorie plan.
+      </p>
+
+      <h2>Recognising food</h2>
+      <p>
+        Type what you ate in any words, say it with “Speak”, or take a photo. AI turns that into foods and amounts; the
+        calories then come from the ANSES-CIQUAL food table, not from the AI's guess. Check the amounts before adding:
+        you can change each one, and a dish stays one entry under your own name for it. Without a connection you can
+        still search the food list, use My foods and Quick add.
+      </p>
+
+      <h2>Expected vs actual</h2>
+      <p>
+        In Trends, the app compares the change your food diary predicts with what your weight trend did over the same
+        weeks. Close means the estimate fits you. If your weight came out higher, water, salt and the odd unlogged snack
+        are the usual reasons, and the estimate adjusts by itself. It's never a reason to eat less.
+      </p>
+
+      <h2>Calm view</h2>
+      <p>
+        If numbers make you anxious, turn on “Calm view” in the ⋮ menu. It hides calories and grams and shows words and
+        shapes instead: “room for more”, “on target”, “trending down”. Everything else works the same.
+      </p>
+
+      <h2>Your data</h2>
+      <p>
+        Everything you log stays on this phone, with no account. That also means it's gone if the phone is lost or the
+        browser's data is cleared, so use “Export backup” now and then and keep the file somewhere safe; “Restore from
+        backup” brings it back. “Delete all my data” erases everything. More in the <a href="privacy.html">privacy policy</a>.
+      </p>
+
+      <h2>Not medical advice</h2>
+      <p>
+        Fuel & Burn is a wellness app and its numbers are estimates. If you have a health condition or are pregnant,
+        talk to a doctor before changing how you eat. If food or your weight starts to feel like a struggle, please
+        reach out to a doctor or an eating-disorder support service near you. You can take a break from logging at
+        any time.
+      </p>
+    </main>
+  </body>
+</html>

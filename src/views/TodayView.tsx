@@ -6,6 +6,8 @@ import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
 import { eaten, fmt, goalIntake, goalLabel, mealsOn, periodData, planKcal, status, weekSummary, type PeriodData } from '../lib/model'
 import { changeWords, formatChange, trendChange, trendSeries } from '../lib/weight'
+import { HELP_URL } from '../lib/links'
+import { useBackup } from '../state/backup'
 import { useApp } from '../state/AppContext'
 import type { Goal, Period } from '../types'
 
@@ -17,8 +19,8 @@ const PERIODS: [Period, string][] = [
 ]
 
 /** The line under today's bar: what is left of the day's plan, never a verdict on the day. */
-function soFarText({ avgEaten, avgBurn }: PeriodData, goal: Goal, numbers: boolean): string {
-  const [lo, hi] = goalIntake(avgBurn, goal)
+function soFarText({ avgEaten, avgBurn }: PeriodData, goal: Goal, floor: number, numbers: boolean): string {
+  const [lo, hi] = goalIntake(avgBurn, goal, floor)
   if (avgEaten < lo) {
     return numbers
       ? `About ${fmt(lo - avgEaten)}–${fmt(hi - avgEaten)} kcal left in today’s plan.`
@@ -28,11 +30,48 @@ function soFarText({ avgEaten, avgBurn }: PeriodData, goal: Goal, numbers: boole
   return 'Above today’s plan range. That’s fine: your weekly average is what counts.'
 }
 
+/** Days of history before the first-week card stops showing, even if the estimate hasn't learned yet. */
+const NEW_USER_DAYS = 35
+/** History needed before a backup is worth suggesting, and how long one counts as recent. */
+const BACKUP_AFTER_DAYS = 14
+const BACKUP_EVERY_DAYS = 30
+
+/**
+ * For someone new: what makes the numbers fit them, and how much of it is there so far.
+ * Counts only, never streaks or missed days.
+ */
+function FirstWeekCard({ foodDays, weighIns, onHide }: { foodDays: number; weighIns: number; onHide: () => void }) {
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+  return (
+    <section className="card" aria-label="Getting to know you">
+      <span className="h">Getting to know you</span>
+      <p>
+        Log what you eat on most days and weigh in on a few mornings. After about a week, your burn estimate starts to
+        fit you, not just the formula.
+      </p>
+      <div className="row muted" style={{ fontSize: 13 }}>
+        <span>
+          This week: food on {plural(foodDays, 'day', 'days')} · {plural(weighIns, 'weigh-in', 'weigh-ins')}
+        </span>
+      </div>
+      <div className="row">
+        <a className="tbtn" href={HELP_URL} target="_blank" rel="noopener" style={{ color: 'var(--burn-ink)', textDecoration: 'none' }}>
+          How it works
+        </a>
+        <button className="tbtn" onClick={onHide}>
+          Hide
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export function TodayView() {
-  const { state, update, today, maint, burnOn, weighIns, openSheet } = useApp()
+  const { state, update, today, maint, maintEstimate, resting, burnOn, weighIns, openSheet } = useApp()
+  const { exportBackup } = useBackup()
   const { goal, meals, numbers } = state
   const period = periodData(state.period, meals, today, burnOn)
-  const periodStatus = status(period.balance, period.avgBurn, goal)
+  const periodStatus = status(period.balance, period.avgBurn, goal, resting)
   const week = weekSummary(meals, today, burnOn)
   // The most recent earlier day this week that ended clearly above maintenance.
   const biggerDay = week.items.findLast((d) => !d.live && d.value != null && d.value > 100)?.date
@@ -51,8 +90,23 @@ export function TodayView() {
   const trend = trendSeries(weighIns, trendFrom < firstWeighIn ? firstWeighIn : trendFrom, today)
   const change = trendChange(trend)
 
+  // The first week: until the estimate learns from a full week, for people who started recently.
+  const firstDay = [...meals.map((m) => m.date), ...weighIns.map((w) => w.date)].sort()[0] ?? today
+  const weekAgo = addDays(today, -6)
+  const showFirstWeek =
+    maintEstimate?.goodWeeks === 0 && firstDay >= addDays(today, -NEW_USER_DAYS) && !state.dismissed.firstWeek
+  const recentFoodDays = new Set(meals.filter((m) => m.date >= weekAgo).map((m) => m.date)).size
+  const recentWeighIns = weighIns.filter((w) => w.date >= weekAgo).length
+
+  // A backup, once there are two weeks of diary to lose, and again a month after the last one.
+  const backupKey = `backup-${today.slice(0, 7)}`
+  const suggestBackup =
+    firstDay <= addDays(today, -BACKUP_AFTER_DAYS) &&
+    (!state.lastBackupAt || state.lastBackupAt.slice(0, 10) <= addDays(today, -BACKUP_EVERY_DAYS)) &&
+    !state.dismissed[backupKey]
+
   let tip = null
-  if (week.loggedDays > 0 && status(week.balance, maint, goal).kind === 'big') {
+  if (week.loggedDays > 0 && status(week.balance, maint, goal, resting).kind === 'big') {
     tip = (
       <TipBox
         title="Your body could use a bit more"
@@ -66,7 +120,7 @@ export function TodayView() {
         energy. A snack or a slightly bigger dinner today would be a good idea.
       </TipBox>
     )
-  } else if (eaten(mealsOn(meals, today)) > planKcal(goal, maint) + 300) {
+  } else if (eaten(mealsOn(meals, today)) > planKcal(goal, maint, resting) + 300) {
     tip = (
       <TipBox title="A bigger day today">
         That happens, and it’s completely fine. What counts is your weekly average. Tomorrow, just eat as usual, no
@@ -88,6 +142,26 @@ export function TodayView() {
       >
         That’s completely fine. What counts is the weekly average
         {week.balance < 0 && ', and your week is still in a deficit'}. No need to eat less today.
+      </TipBox>
+    )
+  } else if (suggestBackup) {
+    const later = () => update((s) => ({ ...s, dismissed: { ...s.dismissed, [backupKey]: true } }))
+    tip = (
+      <TipBox
+        title="Keep a copy of your diary"
+        actions={
+          <>
+            <button className="tbtn" onClick={later}>
+              Not now
+            </button>
+            <button className="tbtn" onClick={exportBackup}>
+              Export backup
+            </button>
+          </>
+        }
+      >
+        Your diary lives only on this phone. A backup file, saved to your drive or sent to yourself, brings it back if
+        the phone is lost or the browser data is cleared.
       </TipBox>
     )
   }
@@ -126,7 +200,7 @@ export function TodayView() {
         ) : (
           <>
             <BalanceBar period={period} status={periodStatus} />
-            <p>{period.soFar ? soFarText(period, goal, numbers) : periodStatus.text.replace('this week', period.phrase)}</p>
+            <p>{period.soFar ? soFarText(period, goal, resting, numbers) : periodStatus.text.replace('this week', period.phrase)}</p>
           </>
         )}
       </section>
@@ -163,6 +237,14 @@ export function TodayView() {
           <TrendLine series={trend} />
         </span>
       </button>
+
+      {showFirstWeek && (
+        <FirstWeekCard
+          foodDays={recentFoodDays}
+          weighIns={recentWeighIns}
+          onHide={() => update((s) => ({ ...s, dismissed: { ...s.dismissed, firstWeek: true } }))}
+        />
+      )}
 
       {tip}
 

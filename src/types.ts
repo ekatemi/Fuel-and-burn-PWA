@@ -117,4 +117,6 @@ export interface AppState {
   activityShortcuts: Shortcut[]
   favs: Favorite[]
   dismissed: Record<string, boolean>
+  /** When a backup was last exported, as an ISO timestamp; null if never. */
+  lastBackupAt: string | null
 }

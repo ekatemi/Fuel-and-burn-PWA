@@ -42,6 +42,9 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 4. Line under the bar: "Deficit 247 kcal a day" plus a status pill (On target / A bit under your goal / Lighter deficit than planned / Above your goal / More than planned).
 5. Trend card for the same period: body fat change, weight change, trend line. Opens Trends.
 6. One tip at most. Buttons: Add food, Log weight.
+7. For new people (history under 5 weeks, estimate not yet learned from a full week): a "Getting to know you" card with this week's counts (food days, weigh-ins), never streaks or missed days, with "How it works" and Hide. The backup tip (lowest priority) comes after 2 weeks of history and again 30 days after the last export (`state.lastBackupAt`), "Not now" hides it for the month.
+
+Help: `public/help.html` ("How it works" in the ⋮ menu and on the first-week card) explains the method in plain words; keep it in sync with how the app calculates. The first few weigh-ins get a toast saying single readings swing with water.
 
 No macros on Today.
 
@@ -66,7 +69,7 @@ No macros on Today.
 | Build muscle | +5 to +10% | +10 to +15% |
 
 Goal sheet shows kcal range and expected weekly change (kcal × 7 / 7700). Default: Lose fat, Gentle.
-Plan floor: never below estimated resting burn.
+Plan floor: never below estimated resting burn (`resting` in the app context, passed as `floor` to `goalIntake`, `planKcal`, `status` and `goalChangeText`), nor below 1,250 kcal.
 
 ## Maintenance (TDEE) estimation
 

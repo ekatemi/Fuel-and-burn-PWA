@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { PRIVACY_URL } from '../lib/links'
+import { HELP_URL, PRIVACY_URL } from '../lib/links'
 import { useApp } from '../state/AppContext'
 import { useBackup } from '../state/backup'
 import { BackIcon, MoreIcon } from './Icons'
@@ -98,6 +98,9 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
             })}
           >
             Delete all my data
+          </button>
+          <button role="menuitem" onClick={pick(() => window.open(HELP_URL, '_blank', 'noopener'))}>
+            How it works
           </button>
           <button role="menuitem" onClick={pick(() => window.open(PRIVACY_URL, '_blank', 'noopener'))}>
             Privacy policy
