@@ -92,6 +92,25 @@ export function activityFit(meals: Meal[], activities: ActivityEntry[], today: s
   return { avgKcal, days, level }
 }
 
+/** Logged activity that makes today a busy day: at least this much, and this many times the usual day. */
+const BUSY_KCAL = 300
+const BUSY_FACTOR = 1.5
+
+/**
+ * Whether today has clearly more logged activity than usual (the average per diary day over the past 28 days).
+ * Only for a gentle "eating a bit more is fine" note: activity never changes the plan, and a quiet day never
+ * means eating less.
+ */
+export function busyDay(meals: Meal[], activities: ActivityEntry[], today: string) {
+  const kcal = activityKcal(activitiesOn(activities, today))
+  if (kcal < BUSY_KCAL) return false
+  const from = addDays(today, -FIT_WINDOW_DAYS)
+  const before = (d: string) => d >= from && d < today
+  const days = new Set([...meals, ...activities].map((e) => e.date).filter(before)).size
+  const usual = days ? activityKcal(activities.filter((a) => before(a.date))) / days : 0
+  return kcal >= usual * BUSY_FACTOR
+}
+
 /** Resting energy use in kcal a day: Katch–McArdle when body fat is logged, otherwise Mifflin–St Jeor. */
 export function restingBurn(profile: Profile, weightKg: number, bodyFatPct?: number | null) {
   return restingKcalPerDay({ ...profile, weightKg, bodyFatPct: bodyFatPct ?? undefined })

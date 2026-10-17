@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { activityFit, goalIntake, periodData, quickList, status, weekSummary } from './model'
+import { activityFit, busyDay, goalIntake, periodData, quickList, status, weekSummary } from './model'
 import type { ActivityEntry, Meal } from '../types'
 
 const TODAY = '2026-10-17'
@@ -103,5 +103,23 @@ describe('activityFit', () => {
     expect(fit?.level).toBe('light')
     expect(fit?.avgKcal).toBe(230)
     expect(activityFit(meals, all.map((d) => walk(d, 700)), TODAY, RESTING)?.level).toBe('active')
+  })
+})
+
+describe('busyDay', () => {
+  const act = (date: string, kcal: number) =>
+    ({ id: `${date}-${kcal}`, date, time: '18:00', input: { kind: 'other', type: 'walk', minutes: 30 }, burn: { kcal } }) as unknown as ActivityEntry
+  const past = Array.from({ length: 10 }, (_, i) => addDays(TODAY, -(i + 1)))
+  const meals = past.map((d) => meal(d, 1800))
+
+  it('needs clearly more activity than usual', () => {
+    const usual = past.map((d) => act(d, 250))
+    expect(busyDay(meals, [...usual, act(TODAY, 300)], TODAY)).toBe(false)
+    expect(busyDay(meals, [...usual, act(TODAY, 400)], TODAY)).toBe(true)
+  })
+
+  it('ignores small amounts, even with no history', () => {
+    expect(busyDay([], [act(TODAY, 200)], TODAY)).toBe(false)
+    expect(busyDay([], [act(TODAY, 350)], TODAY)).toBe(true)
   })
 })

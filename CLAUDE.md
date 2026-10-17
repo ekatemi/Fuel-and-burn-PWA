@@ -93,6 +93,7 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - Use the smoothed trend weight.
 - **Logged activity never enters the balance.** Burn for every day is maintenance (`burnOn` in the app context): usual activity is already inside the learned maintenance, and the question is the average over a period, not single days. Adjusting days by activity added noise (today's plan shrank until a walk was logged; the first days counted activity twice) and reads as "earn food by exercising".
 - **Activity level suggestion** (`activityFit`): once activity has been logged for 14+ days (10+ diary days), the average logged kcal per diary day over the past 28 days is matched to the level whose extra over "Mostly sitting" (resting × (factor − 1.2)) is closest. Burn shows it and offers "Switch to …"; the level never changes by itself, since missed entries would lower the plan.
+- **Busy day note** (`busyDay`): with ≥300 kcal logged today and ≥1.5× the usual day (average per diary day, past 28 days), Today's tip says eating a bit more fits the week; the plan doesn't change. Never the other way round: a quiet day is never a reason to eat less.
 - Show results as "~215" (±20%).
 
 ## AI usage (OpenAI)

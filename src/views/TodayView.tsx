@@ -4,7 +4,7 @@ import { TrendLine } from '../components/TrendLine'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
-import { eaten, fmt, goalIntake, goalLabel, mealsOn, periodData, planKcal, status, weekSummary, type PeriodData } from '../lib/model'
+import { busyDay, eaten, fmt, goalIntake, goalLabel, mealsOn, periodData, planKcal, status, weekSummary, type PeriodData } from '../lib/model'
 import { changeWords, formatChange, trendChange, trendSeries } from '../lib/weight'
 import { HELP_URL } from '../lib/links'
 import { useBackup } from '../state/backup'
@@ -125,6 +125,14 @@ export function TodayView() {
       <TipBox title="A bigger day today">
         That happens, and it’s completely fine. What counts is your weekly average. Tomorrow, just eat as usual, no
         need to make up for it.
+      </TipBox>
+    )
+  } else if (busyDay(meals, state.activities, today)) {
+    // Only ever this way round: a quiet day is never a reason to eat less.
+    tip = (
+      <TipBox title="A busy day of moving">
+        If you’re hungrier than usual, eating a bit more today fits your week. Your plan stays the same: it’s your
+        average that counts.
       </TipBox>
     )
   } else if (biggerDay && !state.dismissed[biggerDayKey]) {
