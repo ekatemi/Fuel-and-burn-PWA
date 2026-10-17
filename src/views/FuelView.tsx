@@ -4,18 +4,29 @@ import { QuickChips } from '../components/QuickChips'
 import { TipBox } from '../components/TipBox'
 import { TopBar } from '../components/TopBar'
 import { addDays, longLabel, weekdayLong } from '../lib/dates'
-import { eaten, fmt, GROUP_NAMES, mealGroups, mealsOn, nowTime, slotForTime, SLOT_NAMES } from '../lib/model'
+import { eaten, fmt, GROUP_NAMES, mealGroups, mealsOn, nowTime, rangeSummary, slotForTime, SLOT_NAMES, status, swapIdea } from '../lib/model'
 import { newId } from '../lib/ids'
 import { useApp } from '../state/AppContext'
 import type { Food, Meal } from '../types'
 
 export function FuelView() {
-  const { state, update, today, diaryDate, setDiaryDate, addMeals, removeMeals, openSheet, openAddFood, showToast } = useApp()
+  const { state, update, today, maint, resting, burnOn, diaryDate, setDiaryDate, addMeals, removeMeals, openSheet, openAddFood, showToast } =
+    useApp()
   const { favs, numbers } = state
   const isToday = diaryDate === today
   const meals = mealsOn(state.meals, diaryDate)
   const total = eaten(meals)
   const groups = mealGroups(meals)
+
+  // A "half the portion" idea, only while the past two weeks run above the plan: never a nudge to eat
+  // less for someone already on target or under it, and never while building muscle.
+  const twoWeeks = rangeSummary(state.meals, addDays(today, -14), addDays(today, -1), burnOn)
+  const aboveGoal =
+    state.goal.type !== 'gain' &&
+    twoWeeks.loggedDays >= 4 &&
+    status(twoWeeks.balance, maint, state.goal, resting).kind === 'over'
+  const swap = aboveGoal ? swapIdea(state.meals, today) : null
+  const swapKey = swap && `swap-${swap.name.toLowerCase()}-${today.slice(0, 7)}`
   const dayName = isToday ? 'Today' : diaryDate === addDays(today, -1) ? 'Yesterday' : weekdayLong(diaryDate)
 
   const quickAdd = (food: Food) => {
@@ -146,27 +157,26 @@ export function FuelView() {
         )}
       </div>
 
-      {!state.dismissed.chips && (
+      {swap && swapKey && !state.dismissed[swapKey] && (
         <TipBox
           title="A small idea for your week"
           actions={
             <>
-              <button
-                className="tbtn"
-                onClick={() => update((s) => ({ ...s, dismissed: { ...s.dismissed, chips: true } }))}
-              >
+              <button className="tbtn" onClick={() => update((s) => ({ ...s, dismissed: { ...s.dismissed, [swapKey]: true } }))}>
                 Not now
               </button>
-              <button className="tonal" onClick={() => openSheet('snacks')}>
-                Lighter snacks
-              </button>
+              {swap.snack && (
+                <button className="tonal" onClick={() => openSheet('snacks')}>
+                  Lighter snacks
+                </button>
+              )}
             </>
           }
         >
-          Chips showed up 5 times in two weeks
+          {swap.name} showed up {swap.count} times in two weeks
           {numbers
-            ? ', about 300 kcal each. Swapping half for a lighter snack frees up around 375 kcal a week.'
-            : '. Swapping half of those for a lighter snack would make a nice difference over a week.'}
+            ? `, about ${fmt(swap.avgKcal)} kcal each. Having half the portion would free up around ${fmt(swap.weekly)} kcal a week, about ${fmt(swap.monthly)} a month.`
+            : '. Having half the portion now and then would make a nice difference over a month.'}
         </TipBox>
       )}
 

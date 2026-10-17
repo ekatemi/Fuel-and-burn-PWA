@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { activityFit, busyDay, goalIntake, periodData, quickList, status, weekSummary } from './model'
+import { activityFit, busyDay, goalIntake, periodData, portionGrams, quickList, status, swapIdea, weekSummary } from './model'
 import type { ActivityEntry, Meal } from '../types'
 
 const TODAY = '2026-10-17'
@@ -121,5 +121,40 @@ describe('busyDay', () => {
   it('ignores small amounts, even with no history', () => {
     expect(busyDay([], [act(TODAY, 200)], TODAY)).toBe(false)
     expect(busyDay([], [act(TODAY, 350)], TODAY)).toBe(true)
+  })
+})
+
+describe('swapIdea', () => {
+  const dense = (date: string, name = 'Chips', kcal = 300, portion = '55 g', slot: Meal['slot'] = 'snack'): Meal => ({
+    ...meal(date, kcal, name),
+    id: `${date}-${name}-${kcal}`,
+    portion,
+    slot,
+  })
+  const d = (n: number) => addDays(TODAY, -n)
+
+  it('reads weights from portions', () => {
+    expect(portionGrams('120 g')).toBe(120)
+    expect(portionGrams('330 ml')).toBe(330)
+    expect(portionGrams('1 bowl')).toBeNull()
+  })
+
+  it('picks a dense food logged often, with half the portion over a week and a month', () => {
+    const idea = swapIdea([dense(d(1)), dense(d(3)), dense(d(6)), dense(d(9)), dense(d(12))], TODAY)!
+    expect(idea.name).toBe('Chips')
+    expect(idea.count).toBe(5)
+    expect(idea.avgKcal).toBe(300)
+    expect(idea.weekly).toBe(380) // 5 × 300 / 2 over two weeks = 375 a week
+    expect(idea.monthly).toBe(1600)
+    expect(idea.snack).toBe(true)
+  })
+
+  it('leaves out light, small, rare, weightless and older foods', () => {
+    const light = [1, 2, 3].map((n) => dense(d(n), 'Rice', 260, '200 g'))
+    const small = [1, 2, 3].map((n) => dense(d(n), 'Olive oil', 90, '10 g'))
+    const rare = [1, 2].map((n) => dense(d(n)))
+    const noWeight = [1, 2, 3].map((n) => dense(d(n), 'Cookies', 300, '1 pack'))
+    const old = [15, 16, 17].map((n) => dense(d(n), 'Nuts'))
+    expect(swapIdea([...light, ...small, ...rare, ...noWeight, ...old], TODAY)).toBeNull()
   })
 })

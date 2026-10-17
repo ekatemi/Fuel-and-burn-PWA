@@ -19,6 +19,7 @@ This is not a professional or competitive tool. It must never encourage restrict
 - **No compensation advice.** After a big day the tip is: the weekly average matters, eat as usual tomorrow. Never "eat less tomorrow".
 - **Undereating gets the same gentle nudge.** If the deficit is well beyond the chosen pace, suggest eating more ("Your body could use a bit more").
 - **Swaps, not bans.** Frequent-snack tips suggest swapping some, e.g. half the chips, with the weekly kcal effect, plus a "Not now" option.
+  Implemented in Fuel (`swapIdea`): an energy-dense food (≥4 kcal/g, weight read from a "120 g" portion, ≥100 kcal a time) logged ≥3 times in 14 days; the one adding the most kcal. "Having half the portion would free up around X kcal a week, about Y a month." Shown only for Lose fat or Maintain and only while the past 14 days average above the goal range (status `over`, ≥4 full days): never a nudge to eat less when on target or under. "Not now" hides it for that food for the month; "Lighter snacks" when it is mostly a snack.
 - **No "Fast" or "Hard" pace.** Deficit capped at −20% of maintenance. Plan never below estimated resting burn (BMR).
 - **No achievement badges for weight loss.** Rapid loss is a reason for a gentle tip, not praise.
 - **Calm view**: a setting that hides all numbers (kcal, grams) and shows words and shapes instead.

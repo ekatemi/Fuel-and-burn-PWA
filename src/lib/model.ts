@@ -502,3 +502,62 @@ export function quickList(favs: Favorite[], meals: Meal[]): QuickEntry[] {
     ...frequent.map(({ food }): QuickEntry => ({ source: 'freq', food })),
   ]
 }
+
+// ---- Swap ideas ------------------------------------------------------------
+
+/** Days looked back over, how often a food must show up in them, and how big a serving must be to matter. */
+const SWAP_WINDOW_DAYS = 14
+const SWAP_MIN_COUNT = 3
+const SWAP_MIN_KCAL = 100
+/** kcal per gram from which a food counts as energy-dense: chips, nuts, chocolate, cheese, biscuits, butter. */
+const DENSE_KCAL_PER_G = 4
+
+export interface SwapIdea {
+  /** As logged most recently. */
+  name: string
+  count: number
+  /** Average kcal each time. */
+  avgKcal: number
+  /** kcal freed by having half the portion, at the same frequency. */
+  weekly: number
+  monthly: number
+  /** Logged mostly as a snack, so lighter snacks are a fitting idea. */
+  snack: boolean
+}
+
+/** Weight of a logged portion like "120 g" or "330 ml"; null when the portion has no weight ("1 bowl"). */
+export function portionGrams(portion: string) {
+  const m = /^(\d+(?:[.,]\d+)?)\s*(g|ml)$/.exec(portion.trim())
+  return m ? Number(m[1].replace(',', '.')) : null
+}
+
+/**
+ * The energy-dense food that adds the most to the past two weeks, if one shows up often enough: the base for
+ * a "half the portion" idea. Only an idea; when to show it is up to the caller.
+ */
+export function swapIdea(meals: Meal[], today: string): SwapIdea | null {
+  const from = addDays(today, -SWAP_WINDOW_DAYS)
+  const foods = new Map<string, Meal[]>()
+  for (const m of meals) {
+    if (m.date < from || m.date >= today || m.kcal < SWAP_MIN_KCAL) continue
+    const grams = portionGrams(m.portion)
+    if (!grams || m.kcal / grams < DENSE_KCAL_PER_G) continue
+    const key = m.name.toLowerCase().trim()
+    foods.set(key, [...(foods.get(key) ?? []), m])
+  }
+  let best: Meal[] | null = null
+  for (const list of foods.values()) {
+    if (list.length >= SWAP_MIN_COUNT && (!best || eaten(list) > eaten(best))) best = list
+  }
+  if (!best) return null
+  const latest = best.reduce((a, b) => (b.date + b.time > a.date + a.time ? b : a))
+  const perWeek = eaten(best) / 2 / (SWAP_WINDOW_DAYS / 7)
+  return {
+    name: latest.name,
+    count: best.length,
+    avgKcal: eaten(best) / best.length,
+    weekly: r10(perWeek),
+    monthly: Math.round((perWeek * 30) / 7 / 50) * 50,
+    snack: best.filter((m) => m.slot === 'snack').length * 2 >= best.length,
+  }
+}
