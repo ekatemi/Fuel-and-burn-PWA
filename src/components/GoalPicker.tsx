@@ -1,4 +1,4 @@
-import { goalRange, GOALS } from '../lib/model'
+import { goalIntake, goalRange, GOALS } from '../lib/model'
 import type { Goal, GoalType, Pace } from '../types'
 
 const TYPES: [GoalType, string][] = [
@@ -80,9 +80,10 @@ export function GoalPicker({ goal, onChange }: { goal: Goal; onChange: (goal: Go
 const KCAL_PER_KG = 7700
 
 /** Expected weekly weight change at this goal, as a sentence. */
-export function goalChangeText(goal: Goal, maint: number) {
-  const [lo, hi] = goalRange(goal)
-  const kgPerWeek = (p: number) => Math.abs((maint * p * 7) / KCAL_PER_KG).toFixed(1)
+export function goalChangeText(goal: Goal, maint: number, floor = 0) {
+  // From the intake range itself, so a range raised to the resting-burn floor shows its real, smaller change.
+  const [lo, hi] = goalIntake(maint, goal, floor)
+  const kgPerWeek = (intake: number) => Math.abs(((intake - maint) * 7) / KCAL_PER_KG).toFixed(1)
   return goal.type === 'maintain'
     ? 'Weight stays roughly the same'
     : goal.type === 'cut'

@@ -44,10 +44,10 @@ export function FavsSheet() {
 }
 
 export function TargetsSheet() {
-  const { state, maint, update, closeSheet } = useApp()
+  const { state, maint, resting, update, closeSheet } = useApp()
   const { targets } = state
   const kcal = 4 * targets.protein + 9 * targets.fat + 4 * targets.carbs
-  const plan = planKcal(state.goal, maint)
+  const plan = planKcal(state.goal, maint, resting)
   const fits = Math.abs(kcal - plan) <= 150
 
   const adjust = (key: MacroKey, delta: number) =>
@@ -112,7 +112,12 @@ export function WeightSheet() {
       bodyFat: fat.trim() ? { ...s.bodyFat, [today]: pct } : s.bodyFat,
     }))
     closeSheet()
-    showToast('Saved. Your trend updates as the week goes on.')
+    // The first few times, say why one reading isn't the answer.
+    showToast(
+      Object.keys(state.weighIns).length < 3
+        ? 'Saved. One reading can move by a kilo with water and food; the trend smooths that out.'
+        : 'Saved. Your trend updates as the week goes on.',
+    )
   }
 
   return (

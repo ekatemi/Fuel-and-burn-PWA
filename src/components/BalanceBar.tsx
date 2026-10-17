@@ -8,10 +8,10 @@ export function soFarWords(eaten: number, [lo, hi]: [number, number]): string {
 
 /** One bar for the period: what was eaten, against the goal band and maintenance. */
 export function BalanceBar({ period, status }: { period: PeriodData; status: Status }) {
-  const { state } = useApp()
+  const { state, resting } = useApp()
   const showNumbers = state.numbers
   const { avgEaten, avgBurn, balance } = period
-  const [goalLo, goalHi] = goalIntake(avgBurn, state.goal)
+  const [goalLo, goalHi] = goalIntake(avgBurn, state.goal, resting)
   const end = r10(Math.max(avgBurn, goalHi))
   const pct = (x: number) => Math.max(0, Math.min(100, (x / end) * 100))
   const over = Math.round(avgEaten - end)

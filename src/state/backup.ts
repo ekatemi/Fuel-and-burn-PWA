@@ -48,7 +48,8 @@ function pickFile(): Promise<File | null> {
 }
 
 export function useBackup() {
-  const { state, doc, replaceDoc, showToast } = useApp()
+  const { state, doc, update, replaceDoc, showToast } = useApp()
+  const saved = () => update((s) => ({ ...s, lastBackupAt: new Date().toISOString() }))
 
   const exportBackup = async () => {
     const backup: BackupFile = { app: APP_ID, version: 2, exportedAt: new Date().toISOString(), doc }
@@ -60,6 +61,7 @@ export function useBackup() {
     if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: 'Fuel & Burn backup' })
+        saved()
       } catch {
         // Share sheet dismissed.
       }
@@ -71,6 +73,7 @@ export function useBackup() {
     link.download = file.name
     link.click()
     URL.revokeObjectURL(url)
+    saved()
     showToast('Backup saved to your downloads')
   }
 

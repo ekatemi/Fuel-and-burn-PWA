@@ -30,6 +30,7 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 
 **Today** (answer at a glance):
 1. Period selector: Today / Week / Month / Year (Week by default; "All" was dropped as it added nothing over Year). Today shows kcal eaten so far against the day's plan range and what is left of it; no daily deficit or status pill, since the day isn't over.
+   Week is the calendar week; Month is the past 30 days and Year the past 12 months, all averaged over finished days with food logged (`weekSummary`, `rangeSummary`); a day with under half its burn logged is incomplete and left out (`INCOMPLETE_DAY` in `model.ts`, shared with `tdee.ts`). No sample or made-up history anywhere outside "Look around with sample data".
 2. Goal chip, e.g. "🎯 Lose fat · Gentle", which opens the goal sheet.
 3. One horizontal bar from 0 to the scale end:
    - scale end = max(maintenance, top of goal range): maintenance for Lose fat, goal max for Build muscle;
@@ -41,6 +42,9 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 4. Line under the bar: "Deficit 247 kcal a day" plus a status pill (On target / A bit under your goal / Lighter deficit than planned / Above your goal / More than planned).
 5. Trend card for the same period: body fat change, weight change, trend line. Opens Trends.
 6. One tip at most. Buttons: Add food, Log weight.
+7. For new people (history under 5 weeks, estimate not yet learned from a full week): a "Getting to know you" card with this week's counts (food days, weigh-ins), never streaks or missed days, with "How it works" and Hide. The backup tip (lowest priority) comes after 2 weeks of history and again 30 days after the last export (`state.lastBackupAt`), "Not now" hides it for the month.
+
+Help: `public/help.html` ("How it works" in the ⋮ menu and on the first-week card) explains the method in plain words; keep it in sync with how the app calculates. The first few weigh-ins get a toast saying single readings swing with water.
 
 No macros on Today.
 
@@ -51,9 +55,10 @@ No macros on Today.
 - Targets sheet shows whether protein, fat and carbs add up to the calorie plan (±150 kcal) and gently says if not.
 - Quick add has two parts. **My foods**: user-saved items, created via "+ New" or the ★ on any logged item. **Often in your diary**: items logged at least twice, top 5, no duplicates with My foods.
 
-**Burn**: maintenance with range and confidence; today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
+**Burn**: maintenance with range and confidence (no accuracy percentages: there is no ground truth to measure them against; instead a learning row, "Estimate from your profile" → "Learning from your data · 2 of 4 weeks" → "Tuned to you", with one dot per week); today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
 
 **Trends**: weight trend (7-day smoothing, unusual readings left out), optional body fat trend, fat mass vs lean mass, expected vs actual change. No weekly balance chart: the balance lives on Today.
+- Expected vs actual (`expectedVsActual` in `tdee.ts`): over the same weeks as the maintenance estimate, the change the food diary predicts against the **formula** burn (daily balance × 7 / 7700) next to the trend change. Not against the learned estimate: it is fitted to the same weeks and would always agree. Within 0.15 kg a week counts as "about as expected". A higher result is never a reason to eat less: the text says water, salt and unlogged snacks play a part and the estimate adjusts.
 
 ## Goals
 
@@ -64,7 +69,7 @@ No macros on Today.
 | Build muscle | +5 to +10% | +10 to +15% |
 
 Goal sheet shows kcal range and expected weekly change (kcal × 7 / 7700). Default: Lose fat, Gentle.
-Plan floor: never below estimated resting burn.
+Plan floor: never below estimated resting burn (`resting` in the app context, passed as `floor` to `goalIntake`, `planKcal`, `status` and `goalChangeText`), nor below 1,250 kcal.
 
 ## Maintenance (TDEE) estimation
 

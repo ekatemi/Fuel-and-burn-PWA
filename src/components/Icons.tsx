@@ -48,13 +48,6 @@ export const MoreIcon = ({ size = 22 }: IconProps) => (
   </svg>
 )
 
-export const WatchIcon = ({ size = 16 }: IconProps) => (
-  <Stroke size={size} width={1.8}>
-    <rect x="6" y="6" width="12" height="12" rx="6" />
-    <path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3" />
-  </Stroke>
-)
-
 export const BulbIcon = ({ size = 20 }: IconProps) => (
   <Stroke size={size} width={1.8}>
     <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" />

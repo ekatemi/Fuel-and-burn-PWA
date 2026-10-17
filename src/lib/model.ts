@@ -1,6 +1,5 @@
-import { HISTORY, SAMPLE_MONTHS, SAMPLE_WEEKS } from '../data/demo'
 import { activityAdjustment, restingKcalPerDay } from './activity'
-import { addDays, monthDay, monthShort, monthStart, weekdayShort, weekStart } from './dates'
+import { addDays, weekdayShort, weekStart } from './dates'
 import type {
   ActivityEntry,
   DraftItem,
@@ -20,9 +19,15 @@ import type {
   Targets,
 } from '../types'
 
+/**
+ * A day with less than this share of its burn logged is most likely incomplete (a forgotten meal), not what was
+ * eaten. Averages and the maintenance estimate leave it out, so it can't show up as a big deficit.
+ */
+export const INCOMPLETE_DAY = 0.5
+const fullDay = (kcal: number, burn: number) => kcal >= burn * INCOMPLETE_DAY
+
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
 export const r10 = (x: number) => Math.round(x / 10) * 10
-const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0)
 
 export const nowTime = () => {
   const d = new Date()
@@ -132,15 +137,21 @@ export function goalRange(goal: Goal): Range {
   return paces[goal.pace] ?? paces.gentle
 }
 
+/** Never suggested below this, whatever the formulas say. */
 const MIN_INTAKE = 1250
 
-export function goalIntake(burn: number, goal: Goal): Range {
+/**
+ * The kcal-a-day range for a goal, never below `floor`: the person's estimated resting burn,
+ * so even the steadiest pace never asks someone to eat less than their body uses at rest.
+ */
+export function goalIntake(burn: number, goal: Goal, floor = 0): Range {
   const [lo, hi] = goalRange(goal)
-  return [r10(Math.max(MIN_INTAKE, burn * (1 + lo))), r10(Math.max(MIN_INTAKE, burn * (1 + hi)))]
+  const min = Math.max(MIN_INTAKE, floor)
+  return [r10(Math.max(min, burn * (1 + lo))), r10(Math.max(min, burn * (1 + hi)))]
 }
 
-export function planKcal(goal: Goal, maint: number) {
-  const [a, b] = goalIntake(maint, goal)
+export function planKcal(goal: Goal, maint: number, floor = 0) {
+  const [a, b] = goalIntake(maint, goal, floor)
   return (a + b) / 2
 }
 
@@ -155,10 +166,11 @@ export interface Status {
   text: string
 }
 
-export function status(balance: number, burn: number, goal: Goal): Status {
-  const [lo, hi] = goalRange(goal)
-  const balLo = burn * lo
-  const balHi = burn * hi
+export function status(balance: number, burn: number, goal: Goal, floor = 0): Status {
+  // The goal range as a balance, raised with the intake range when the floor lifts it.
+  const [intakeLo, intakeHi] = goalIntake(burn, goal, floor)
+  const balLo = intakeLo - burn
+  const balHi = intakeHi - burn
   if (balance >= balLo - 40 && balance <= balHi + 40) {
     return {
       kind: 'on',
@@ -235,7 +247,7 @@ export function weekSummary(meals: Meal[], today: string, burnOn: (date: string)
     const date = addDays(start, i)
     const dayMeals = date <= today ? mealsOn(meals, date) : []
     const logged = dayMeals.length > 0
-    if (logged && date < today) {
+    if (logged && date < today && fullDay(eaten(dayMeals), burnOn(date))) {
       eatenSum += eaten(dayMeals)
       burnSum += burnOn(date)
       loggedDays++
@@ -266,13 +278,32 @@ export interface PeriodData {
   soFar?: boolean
 }
 
-const known = (items: PeriodItem[]) => items.flatMap((i) => (i.value == null ? [] : [i.value]))
+/**
+ * Averages over the days from `from` to `to` with food logged; empty and incomplete days are left out,
+ * since an empty day is a day not logged, not a day without eating.
+ */
+export function rangeSummary(meals: Meal[], from: string, to: string, burnOn: (date: string) => number) {
+  const eatenByDay = new Map<string, number>()
+  for (const m of meals) if (m.date >= from && m.date <= to) eatenByDay.set(m.date, (eatenByDay.get(m.date) ?? 0) + m.kcal)
+  let eatenSum = 0
+  let burnSum = 0
+  let loggedDays = 0
+  for (const [date, kcal] of eatenByDay) {
+    const burn = burnOn(date)
+    if (!fullDay(kcal, burn)) continue
+    eatenSum += kcal
+    burnSum += burn
+    loggedDays++
+  }
+  const avgEaten = loggedDays ? eatenSum / loggedDays : 0
+  const avgBurn = loggedDays ? burnSum / loggedDays : 0
+  return { loggedDays, avgEaten, avgBurn, balance: avgEaten - avgBurn }
+}
 
 export function periodData(
   period: Period,
   meals: Meal[],
   today: string,
-  maint: number,
   burnOn: (date: string) => number,
 ): PeriodData {
   if (period === 'today') {
@@ -294,24 +325,20 @@ export function periodData(
     }
   }
 
-  // Longer periods: sample history for earlier weeks and months, plus the real current week.
-  const thisWeek = weekStart(today)
-  const weekValue = week.loggedDays ? week.balance : null
-  const monthItems: PeriodItem[] = [
-    ...SAMPLE_WEEKS.map((value, i) => ({ label: monthDay(addDays(thisWeek, (i - SAMPLE_WEEKS.length) * 7)), value })),
-    { label: monthDay(thisWeek), value: weekValue, live: true },
-  ]
-  const months: PeriodItem[] = [
-    ...SAMPLE_MONTHS.map((value, i) => ({ label: monthShort(monthStart(today, i - SAMPLE_MONTHS.length)), value })),
-    { label: monthShort(monthStart(today)), value: avg(known(monthItems)), live: true },
-  ]
   const base =
     period === 'month'
-      ? { title: 'This month', phrase: 'this month', items: monthItems }
-      : { title: 'Past 12 months', phrase: 'over the past year', items: months.slice(-12) }
-
-  const balance = avg(known(base.items))
-  return { ...base, empty: false, balance, avgBurn: maint, avgEaten: maint + balance }
+      ? { title: 'Past 30 days', phrase: 'over the past 30 days', days: 30 }
+      : { title: 'Past 12 months', phrase: 'over the past year', days: 365 }
+  const range = rangeSummary(meals, addDays(today, -base.days), addDays(today, -1), burnOn)
+  return {
+    title: base.title,
+    phrase: base.phrase,
+    items: [],
+    empty: range.loggedDays === 0,
+    balance: range.balance,
+    avgEaten: range.avgEaten,
+    avgBurn: range.loggedDays ? range.avgBurn : burnOn(today),
+  }
 }
 
 // ---- Logging food ----------------------------------------------------------
@@ -423,7 +450,6 @@ export interface QuickEntry {
 export function quickList(favs: Favorite[], meals: Meal[]): QuickEntry[] {
   const favNames = new Set(favs.map((f) => f.name.toLowerCase()))
   const counts = new Map<string, { food: Food; count: number }>()
-  for (const { count, ...food } of HISTORY) counts.set(food.name, { food, count })
   for (const { id: _id, date: _date, time: _time, slot: _slot, ...food } of meals) {
     const entry = counts.get(food.name)
     if (entry) entry.count++

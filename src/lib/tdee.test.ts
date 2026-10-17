@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { learnMaintenance, weekObservations } from './tdee'
+import { expectedVsActual, learnMaintenance, weekObservations } from './tdee'
 import { weighInList } from './weight'
 import type { Meal } from '../types'
 
@@ -83,5 +83,30 @@ describe('learnMaintenance', () => {
   it('needs food on at least four days of a week', () => {
     const { meals, weighIns } = history(40, (i) => (i % 3 ? 0 : 2100), () => 70)
     expect(learnMaintenance(meals, weighIns, TODAY, FORMULA).goodWeeks).toBe(0)
+  })
+})
+
+describe('expectedVsActual', () => {
+  const burn = () => 2000
+
+  it('waits for a week with enough data', () => {
+    expect(expectedVsActual([], [], TODAY, FORMULA, burn)).toBeNull()
+  })
+
+  it('agrees when weight moves as the diary predicts', () => {
+    // 500 kcal a day under a 2000 burn: 3500 a week, about 0.45 kg.
+    const { meals, weighIns } = history(40, () => 1500, (i) => 80 - (3500 / 7700) * (i / 7))
+    const result = expectedVsActual(meals, weighIns, TODAY, FORMULA, burn)!
+    expect(result.weeks).toBe(4)
+    expect(result.expected).toBeCloseTo(-1.82, 1)
+    expect(result.actual).toBeCloseTo(-1.82, 1)
+    expect(result.verdict).toBe('as-expected')
+  })
+
+  it('says so when weight comes out higher or lower', () => {
+    const flat = history(40, () => 1500, () => 80)
+    expect(expectedVsActual(flat.meals, flat.weighIns, TODAY, FORMULA, burn)!.verdict).toBe('higher')
+    const falling = history(40, () => 2000, (i) => 80 - 0.5 * (i / 7))
+    expect(expectedVsActual(falling.meals, falling.weighIns, TODAY, FORMULA, burn)!.verdict).toBe('lower')
   })
 })

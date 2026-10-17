@@ -1,31 +1,15 @@
-// Sample data carried over from the prototype. The diary itself is real and dated;
-// what is here stands in for a watch sync and for history older than the diary.
+// Starting data: an empty first launch, a few starter foods, snack ideas, and the sample data for
+// "Look around with sample data".
 import { addDays } from '../lib/dates'
 import { slotForTime } from '../lib/model'
 import { newId } from '../lib/ids'
-import type { AppState, Favorite, Food, Meal, Profile } from '../types'
-
-
-// Average daily balance for the three weeks, and the fifteen months, before the current one.
-export const SAMPLE_WEEKS = [-300, -280, -210]
-export const SAMPLE_MONTHS = [-50, 120, 80, -150, -220, -180, 160, -260, -240, -210, -90, -200, -230, 40, -190]
+import type { AppState, Favorite, Meal, Profile } from '../types'
 
 export const SNACKS = [
   { name: 'Greek yogurt with berries', kcal: '~150 kcal', note: 'lots of protein' },
   { name: 'Apple with a few almonds', kcal: '~180 kcal', note: 'crunchy' },
   { name: 'Popcorn, air-popped', kcal: '~100 kcal a bowl', note: 'salty like chips' },
   { name: 'Cottage cheese', kcal: '~180 kcal', note: 'filling' },
-]
-
-// How often each food was logged before the diary starts, for "Often in your diary".
-export const HISTORY: (Food & { count: number })[] = [
-  { name: 'Oatmeal', portion: '1 bowl', kcal: 300, protein: 10, carbs: 50, fat: 6, fiber: 8, count: 9 },
-  { name: 'Banana', portion: '1 medium', kcal: 105, protein: 1, carbs: 27, fat: 0, fiber: 3, count: 7 },
-  { name: 'Protein shake', portion: '1 scoop with milk', kcal: 205, protein: 30, carbs: 12, fat: 5, fiber: 0, count: 6 },
-  { name: 'Apple', portion: '1 medium', kcal: 95, protein: 0, carbs: 25, fat: 0, fiber: 4, count: 5 },
-  { name: 'Grilled chicken salad', portion: '1 large bowl', kcal: 620, protein: 48, carbs: 22, fat: 34, fiber: 5, count: 4 },
-  { name: 'Tortilla española', portion: '1 slice', kcal: 230, protein: 8, carbs: 15, fat: 15, fiber: 1, count: 3 },
-  { name: 'Latte', portion: '1 cup', kcal: 130, protein: 7, carbs: 12, fat: 5, fiber: 0, count: 2 },
 ]
 
 const defaultFavs = (): Favorite[] => [
@@ -106,6 +90,7 @@ export const freshState = (): AppState => ({
   bodyFat: {},
   favs: defaultFavs(),
   dismissed: {},
+  lastBackupAt: null,
   meals: [],
   activities: [],
   activityShortcuts: ['steps', 'walk', 'run', 'other'],
