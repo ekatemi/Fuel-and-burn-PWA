@@ -62,8 +62,10 @@ export function useBackup() {
       try {
         await navigator.share({ files: [file], title: 'Fuel & Burn backup' })
         saved()
-      } catch {
-        // Share sheet dismissed.
+        showToast('Backup sent. Keep that file somewhere safe.')
+      } catch (e) {
+        // Closing the share sheet is a choice, not an error.
+        if ((e as Error)?.name !== 'AbortError') showToast('Couldn’t share the backup. Try again.')
       }
       return
     }
