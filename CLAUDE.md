@@ -30,7 +30,7 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 
 **Today** (answer at a glance):
 1. Period selector: Today / Week / Month / Year (Week by default; "All" was dropped as it added nothing over Year). Today shows kcal eaten so far against the day's plan range and what is left of it; no daily deficit or status pill, since the day isn't over.
-   Week is the calendar week; Month is the past 30 days and Year the past 12 months, both averaged over finished days with food logged (`rangeSummary`). No sample or made-up history anywhere outside "Look around with sample data".
+   Week is the calendar week; Month is the past 30 days and Year the past 12 months, all averaged over finished days with food logged (`weekSummary`, `rangeSummary`); a day with under half its burn logged is incomplete and left out (`INCOMPLETE_DAY` in `model.ts`, shared with `tdee.ts`). No sample or made-up history anywhere outside "Look around with sample data".
 2. Goal chip, e.g. "🎯 Lose fat · Gentle", which opens the goal sheet.
 3. One horizontal bar from 0 to the scale end:
    - scale end = max(maintenance, top of goal range): maintenance for Lose fat, goal max for Build muscle;
@@ -58,7 +58,7 @@ No macros on Today.
 **Burn**: maintenance with range and confidence (no accuracy percentages: there is no ground truth to measure them against; instead a learning row, "Estimate from your profile" → "Learning from your data · 2 of 4 weeks" → "Tuned to you", with one dot per week); today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
 
 **Trends**: weight trend (7-day smoothing, unusual readings left out), optional body fat trend, fat mass vs lean mass, expected vs actual change. No weekly balance chart: the balance lives on Today.
-- Expected vs actual (`expectedVsActual` in `tdee.ts`): over the same weeks as the maintenance estimate, the change the food diary predicts (daily balance against `burnOn` × 7 / 7700) next to the trend change. Within 0.15 kg a week counts as "about as expected". A higher result is never a reason to eat less: the text says water, salt and unlogged snacks play a part and the estimate adjusts.
+- Expected vs actual (`expectedVsActual` in `tdee.ts`): over the same weeks as the maintenance estimate, the change the food diary predicts against the **formula** burn (daily balance × 7 / 7700) next to the trend change. Not against the learned estimate: it is fitted to the same weeks and would always agree. Within 0.15 kg a week counts as "about as expected". A higher result is never a reason to eat less: the text says water, salt and unlogged snacks play a part and the estimate adjusts.
 
 ## Goals
 

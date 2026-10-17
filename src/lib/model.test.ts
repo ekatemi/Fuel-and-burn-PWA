@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { goalIntake, periodData, quickList, status } from './model'
+import { goalIntake, periodData, quickList, status, weekSummary } from './model'
 import type { Meal } from '../types'
 
 const TODAY = '2026-10-17'
@@ -36,10 +36,28 @@ describe('periodData', () => {
     expect(year.avgEaten).toBeCloseTo(2133.3, 1)
   })
 
+  it('leaves out days with too little logged to be complete', () => {
+    const meals = [meal(addDays(TODAY, -1), 1800), meal(addDays(TODAY, -2), 200, 'Coffee')]
+    const month = periodData('month', meals, TODAY, burnOn)
+    expect(month.avgEaten).toBe(1800)
+    expect(month.balance).toBe(-200)
+    expect(periodData('month', [meal(addDays(TODAY, -1), 200)], TODAY, burnOn).empty).toBe(true)
+  })
+
   it('is empty without logged days', () => {
     const month = periodData('month', [meal(TODAY, 500)], TODAY, burnOn)
     expect(month.empty).toBe(true)
     expect(month.avgBurn).toBe(2000)
+  })
+})
+
+describe('weekSummary', () => {
+  it('averages only complete finished days', () => {
+    // 2026-10-17 is a Saturday; the week starts on Monday the 12th.
+    const meals = [meal('2026-10-12', 1900), meal('2026-10-13', 300, 'Snack'), meal(TODAY, 2500)]
+    const week = weekSummary(meals, TODAY, burnOn)
+    expect(week.loggedDays).toBe(1)
+    expect(week.avgEaten).toBe(1900)
   })
 })
 

@@ -193,9 +193,9 @@ export function TodayView() {
         {period.empty ? (
           <>
             <div className="headline" style={{ fontSize: 22 }}>
-              No finished days this week yet
+              No full days logged yet
             </div>
-            <p>Your weekly average counts finished days only, so today joins it tomorrow.</p>
+            <p>Averages count finished days with most of the day’s food logged, so today joins them tomorrow.</p>
           </>
         ) : (
           <>

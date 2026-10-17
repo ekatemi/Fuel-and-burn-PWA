@@ -19,6 +19,13 @@ import type {
   Targets,
 } from '../types'
 
+/**
+ * A day with less than this share of its burn logged is most likely incomplete (a forgotten meal), not what was
+ * eaten. Averages and the maintenance estimate leave it out, so it can't show up as a big deficit.
+ */
+export const INCOMPLETE_DAY = 0.5
+const fullDay = (kcal: number, burn: number) => kcal >= burn * INCOMPLETE_DAY
+
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
 export const r10 = (x: number) => Math.round(x / 10) * 10
 
@@ -240,7 +247,7 @@ export function weekSummary(meals: Meal[], today: string, burnOn: (date: string)
     const date = addDays(start, i)
     const dayMeals = date <= today ? mealsOn(meals, date) : []
     const logged = dayMeals.length > 0
-    if (logged && date < today) {
+    if (logged && date < today && fullDay(eaten(dayMeals), burnOn(date))) {
       eatenSum += eaten(dayMeals)
       burnSum += burnOn(date)
       loggedDays++
@@ -272,7 +279,7 @@ export interface PeriodData {
 }
 
 /**
- * Averages over the days from `from` to `to` with something logged; days without food are left out,
+ * Averages over the days from `from` to `to` with food logged; empty and incomplete days are left out,
  * since an empty day is a day not logged, not a day without eating.
  */
 export function rangeSummary(meals: Meal[], from: string, to: string, burnOn: (date: string) => number) {
@@ -280,11 +287,14 @@ export function rangeSummary(meals: Meal[], from: string, to: string, burnOn: (d
   for (const m of meals) if (m.date >= from && m.date <= to) eatenByDay.set(m.date, (eatenByDay.get(m.date) ?? 0) + m.kcal)
   let eatenSum = 0
   let burnSum = 0
+  let loggedDays = 0
   for (const [date, kcal] of eatenByDay) {
+    const burn = burnOn(date)
+    if (!fullDay(kcal, burn)) continue
     eatenSum += kcal
-    burnSum += burnOn(date)
+    burnSum += burn
+    loggedDays++
   }
-  const loggedDays = eatenByDay.size
   const avgEaten = loggedDays ? eatenSum / loggedDays : 0
   const avgBurn = loggedDays ? burnSum / loggedDays : 0
   return { loggedDays, avgEaten, avgBurn, balance: avgEaten - avgBurn }
