@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { freshState } from '../data/demo'
 import { useToday } from '../lib/dates'
 import { newId } from '../lib/ids'
-import { dayBurn, maintenance, nowTime, restingBurn, toMeal } from '../lib/model'
+import { maintenance, nowTime, restingBurn, toMeal } from '../lib/model'
 import { learnMaintenance, type MaintenanceEstimate } from '../lib/tdee'
 import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
 import type { AppState, KnownItem, MealSlot, SheetName } from '../types'
@@ -43,7 +43,10 @@ interface AppContextValue {
   maintEstimate: MaintenanceEstimate | null
   /** Estimated resting burn, kcal a day: the floor for any plan. 0 before there is a profile. */
   resting: number
-  /** Burn for a day: maintenance adjusted for that day's logged activity. */
+  /**
+   * Burn for a day: maintenance, the same every day. It already holds how you usually move, and the balance is
+   * an average over the period, so logged activity doesn't change it.
+   */
   burnOn: (date: string) => number
   /** The day shown in the Fuel diary. */
   diaryDate: string
@@ -150,7 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       maint,
       maintEstimate,
       resting,
-      burnOn: (date) => dayBurn(maint, state.meals, state.activities, date),
+      burnOn: () => maint,
       diaryDate: pickedDate && pickedDate < today ? pickedDate : today,
       setDiaryDate: (date) => setPickedDate(date < today ? date : null),
       addMeals,

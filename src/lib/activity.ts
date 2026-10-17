@@ -128,17 +128,6 @@ export function activityBurn(u: UserProfile, a: Activity): Burn {
   };
 }
 
-// ---------- how it enters the daily balance ----------
-
-/**
- * Maintenance learned from the weight trend already contains the user's USUAL activity.
- * Only the difference from a typical day is added (or subtracted).
- * typicalKcal = median activity kcal of the last 14 logged days (or a default early on).
- */
-export function activityAdjustment(todayKcal: number, typicalKcal: number): number {
-  return Math.round((todayKcal - typicalKcal) / 5) * 5;
-}
-
 // ---------- examples (example user: 55 kg, 165 cm, 40-year-old woman) ----------
 // activityBurn(u, { kind: 'steps', steps: 11456, pace: 'normal' })
 //   → ~215 kcal, ~7.8 km, ~98 min

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { goalIntake, periodData, quickList, status, weekSummary } from './model'
-import type { Meal } from '../types'
+import { activityFit, goalIntake, periodData, quickList, status, weekSummary } from './model'
+import type { ActivityEntry, Meal } from '../types'
 
 const TODAY = '2026-10-17'
 const burnOn = () => 2000
@@ -79,5 +79,29 @@ describe('goalIntake', () => {
 
   it('counts eating at the floor as on target', () => {
     expect(status(1500 - 1800, 1800, steadyCut, 1500).kind).toBe('on')
+  })
+})
+
+describe('activityFit', () => {
+  const RESTING = 1330
+  const walk = (date: string, kcal: number) =>
+    ({ id: date, date, time: '18:00', input: { kind: 'other', type: 'walk', minutes: 30 }, burn: { kcal } }) as unknown as ActivityEntry
+  const days = (n: number) => Array.from({ length: n }, (_, i) => addDays(TODAY, -(i + 1)))
+
+  it('waits for about two weeks of activity', () => {
+    const recent = days(10)
+    expect(activityFit(recent.map((d) => meal(d, 1800)), recent.map((d) => walk(d, 230)), TODAY, RESTING)).toBeNull()
+  })
+
+  it('matches the average to the nearest level, counting days without activity as 0', () => {
+    const all = days(20)
+    const meals = all.map((d) => meal(d, 1800))
+    // 230 kcal on every day: Lightly active adds 1330 × 0.175 ≈ 233.
+    expect(activityFit(meals, all.map((d) => walk(d, 230)), TODAY, RESTING)?.level).toBe('light')
+    // 460 kcal on every other day averages 230 too.
+    const fit = activityFit(meals, all.filter((_, i) => i % 2).map((d) => walk(d, 460)), TODAY, RESTING)
+    expect(fit?.level).toBe('light')
+    expect(fit?.avgKcal).toBe(230)
+    expect(activityFit(meals, all.map((d) => walk(d, 700)), TODAY, RESTING)?.level).toBe('active')
   })
 })

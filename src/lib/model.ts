@@ -1,4 +1,4 @@
-import { activityAdjustment, restingKcalPerDay } from './activity'
+import { restingKcalPerDay } from './activity'
 import { addDays, weekdayShort, weekStart } from './dates'
 import type {
   ActivityEntry,
@@ -47,33 +47,6 @@ export const mealsOn = (meals: Meal[], date: string) => meals.filter((m) => m.da
 export const activitiesOn = (activities: ActivityEntry[], date: string) => activities.filter((a) => a.date === date)
 export const activityKcal = (activities: ActivityEntry[]) => activities.reduce((a, e) => a + e.burn.kcal, 0)
 
-function median(values: number[]) {
-  if (!values.length) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-}
-
-const TYPICAL_WINDOW_DAYS = 14
-
-/**
- * Logged activity on a typical day: the median over the previous 14 days that have anything
- * in the diary, counting days without logged activity as 0. 0 while there is no history.
- */
-export function typicalActivityKcal(meals: Meal[], activities: ActivityEntry[], date: string) {
-  const from = addDays(date, -TYPICAL_WINDOW_DAYS)
-  const days = new Set(
-    [...meals, ...activities].map((e) => e.date).filter((d) => d >= from && d < date),
-  )
-  return median([...days].map((d) => activityKcal(activitiesOn(activities, d))))
-}
-
-/** Burn for one day: maintenance plus how far that day's logged activity was from a typical day. */
-export function dayBurn(maint: number, meals: Meal[], activities: ActivityEntry[], date: string) {
-  const logged = activityKcal(activitiesOn(activities, date))
-  return maint + activityAdjustment(logged, typicalActivityKcal(meals, activities, date))
-}
-
 // ---- Burn ------------------------------------------------------------------
 
 export const ACTIVITY: Record<Activity, { name: string; desc: string; factor: number }> = {
@@ -81,6 +54,42 @@ export const ACTIVITY: Record<Activity, { name: string; desc: string; factor: nu
   light: { name: 'Lightly active', desc: 'Light exercise 1–3 days a week', factor: 1.375 },
   moderate: { name: 'Moderately active', desc: 'Exercise 3–5 days a week', factor: 1.55 },
   active: { name: 'Very active', desc: 'Hard exercise 6–7 days a week', factor: 1.725 },
+}
+
+// ---- Activity level from the activity diary --------------------------------
+
+/** Days looked back over, how long ago activity logging must have started, and diary days needed in that time. */
+const FIT_WINDOW_DAYS = 28
+const FIT_MIN_SPAN_DAYS = 14
+const FIT_MIN_DIARY_DAYS = 10
+const SITTING_FACTOR = ACTIVITY.sedentary.factor
+
+export interface ActivityFit {
+  /** Average logged activity per diary day, kcal above resting. */
+  avgKcal: number
+  /** Diary days the average is over. */
+  days: number
+  /** The activity level that average looks like. */
+  level: Activity
+}
+
+/**
+ * Which activity level the activity diary looks like: a level adds resting × (factor − 1.2) over "Mostly sitting",
+ * compared with the average logged activity per day (days with food but no activity count as 0). Only a suggestion:
+ * missed entries make the average look lower, so the level never changes by itself. Null until activity has been
+ * logged for about two weeks.
+ */
+export function activityFit(meals: Meal[], activities: ActivityEntry[], today: string, resting: number): ActivityFit | null {
+  const recent = activities.filter((a) => a.date >= addDays(today, -FIT_WINDOW_DAYS) && a.date < today)
+  if (!recent.length || !resting) return null
+  const first = recent.reduce((min, a) => (a.date < min ? a.date : min), recent[0].date)
+  if (first > addDays(today, -FIT_MIN_SPAN_DAYS)) return null
+  const days = new Set([...meals, ...activities].map((e) => e.date).filter((d) => d >= first && d < today)).size
+  if (days < FIT_MIN_DIARY_DAYS) return null
+  const avgKcal = activityKcal(recent) / days
+  const extra = (level: Activity) => Math.abs(resting * (ACTIVITY[level].factor - SITTING_FACTOR) - avgKcal)
+  const level = (Object.keys(ACTIVITY) as Activity[]).reduce((best, l) => (extra(l) < extra(best) ? l : best))
+  return { avgKcal, days, level }
 }
 
 /** Resting energy use in kcal a day: Katch–McArdle when body fat is logged, otherwise Mifflin–St Jeor. */

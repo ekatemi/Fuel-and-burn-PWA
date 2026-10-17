@@ -1,7 +1,6 @@
 import { TrendLine } from '../components/TrendLine'
 import { TopBar } from '../components/TopBar'
 import { addDays, monthDay } from '../lib/dates'
-import { dayBurn } from '../lib/model'
 import { expectedVsActual, type ExpectedVsActual } from '../lib/tdee'
 import { bodyFatSeries, changeWords, formatChange, trendChange, trendSeries } from '../lib/weight'
 import { useApp } from '../state/AppContext'
@@ -60,7 +59,7 @@ export function TrendsView() {
   // Against the formula: the learned estimate is fitted to these same weeks, so it would always agree.
   const formula = maintEstimate?.formula
   const comparison = formula
-    ? expectedVsActual(state.meals, weighIns, today, formula, (d) => dayBurn(formula, state.meals, state.activities, d))
+    ? expectedVsActual(state.meals, weighIns, today, formula, () => formula)
     : null
 
   const stats = [

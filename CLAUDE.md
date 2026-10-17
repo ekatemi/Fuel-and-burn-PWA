@@ -55,7 +55,7 @@ No macros on Today.
 - Targets sheet shows whether protein, fat and carbs add up to the calorie plan (±150 kcal) and gently says if not.
 - Quick add has two parts. **My foods**: user-saved items, created via "+ New" or the ★ on any logged item. **Often in your diary**: items logged at least twice, top 5, no duplicates with My foods.
 
-**Burn**: maintenance with range and confidence (no accuracy percentages: there is no ground truth to measure them against; instead a learning row, "Estimate from your profile" → "Learning from your data · 2 of 4 weeks" → "Tuned to you", with one dot per week); today's burn split by colour into **Resting burn (BMR)**, **Daily activity** and **Workout**; manual activity entry; "How it's calculated" explanation.
+**Burn**: maintenance with range and confidence (no accuracy percentages: there is no ground truth to measure them against; instead a learning row, "Estimate from your profile" → "Learning from your data · 2 of 4 weeks" → "Tuned to you", with one dot per week); what maintenance is made of, split by colour into **Resting burn (BMR)** and **Moving and digesting**; manual activity entry as a diary, with an activity level suggestion; "How it's calculated" explanation.
 
 **Trends**: weight trend (7-day smoothing, unusual readings left out), optional body fat trend, fat mass vs lean mass, expected vs actual change. No weekly balance chart: the balance lives on Today.
 - Expected vs actual (`expectedVsActual` in `tdee.ts`): over the same weeks as the maintenance estimate, the change the food diary predicts against the **formula** burn (daily balance × 7 / 7700) next to the trend change. Not against the learned estimate: it is fitted to the same weeks and would always agree. Within 0.15 kg a week counts as "about as expected". A higher result is never a reason to eat less: the text says water, salt and unlogged snacks play a part and the estimate adjusts.
@@ -91,7 +91,8 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - Walk or run with speed: ACSM walking or running equation.
 - Other activities: MET × the user's own resting rate (Katch-McArdle if body fat is known, else Mifflin).
 - Use the smoothed trend weight.
-- **Only the deviation from a typical day enters the balance** (`activityAdjustment`). Usual activity is already inside the learned maintenance. Typical = median of the last 14 logged days.
+- **Logged activity never enters the balance.** Burn for every day is maintenance (`burnOn` in the app context): usual activity is already inside the learned maintenance, and the question is the average over a period, not single days. Adjusting days by activity added noise (today's plan shrank until a walk was logged; the first days counted activity twice) and reads as "earn food by exercising".
+- **Activity level suggestion** (`activityFit`): once activity has been logged for 14+ days (10+ diary days), the average logged kcal per diary day over the past 28 days is matched to the level whose extra over "Mostly sitting" (resting × (factor − 1.2)) is closest. Burn shows it and offers "Switch to …"; the level never changes by itself, since missed entries would lower the plan.
 - Show results as "~215" (±20%).
 
 ## AI usage (OpenAI)
