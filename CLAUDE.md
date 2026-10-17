@@ -108,10 +108,15 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - Model: `gpt-5.4-mini` since 2026-10-14; `gpt-5.4-nano` mixed up dishes (dropped the bread, merged separate foods, duplicated items).
 - Voice: "Speak" in Add food records with MediaRecorder (`src/lib/recorder.ts`, max 30 s) and the Worker's `/transcribe` turns it into text with `TRANSCRIBE_MODEL` (any language, detected); the text goes into the field and Recognize runs. Not the browser's SpeechRecognition: iOS blocks it in installed web apps. No transcription prompt: with a hint about food, the model invents meals from silence or noise.
 - Send only the food text, voice note or photo. No name, weight or other health data. Audio is not stored.
-- Photo: "Camera" in Add food opens the phone's camera straight away (`capture`), "or pick a photo from your gallery" opens the library; `src/lib/photo.ts` makes a ~768 px JPEG) goes to `/parse-food` as `image`, with the typed text as a note about it ("only half", hidden ingredients); the result replaces the list, like Recognize. Not kept yet.
-- Photos: resize client-side to ~768 px before upload. Do not store them on the server. Keep them in the app (IndexedDB) as a photo food diary; saving to the gallery only via the share sheet.
+- Photo: "Camera" in Add food opens the phone's camera straight away (`capture`), "or pick a photo from your gallery" opens the library; `src/lib/photo.ts` makes a ~1280 px JPEG) goes to `/parse-food` as `image`, with the typed text as a note about it ("only half", hidden ingredients); the result replaces the list, like Recognize. Not kept yet.
+- Photos: resize client-side to ~1280 px before upload (768 px made nutrition tables unreadable). Do not store them on the server. Keep them in the app (IndexedDB) as a photo food diary; saving to the gallery only via the share sheet.
 - Build the app so it still works without AI (search, My foods, Quick add).
-- Food database: ANSES-CIQUAL 2020 (EU, open licence, attribution shown in Add food), bundled and searched on the device (`src/lib/foodDb.ts`, data built by `scripts/build_ciqual.py`). English names now; the format keeps names per language for Spanish and Russian. Packaged products and barcodes: Open Food Facts (planned).
+- Food database: ANSES-CIQUAL 2020 (EU, open licence, attribution shown in Add food), bundled and searched on the device (`src/lib/foodDb.ts`, data built by `scripts/build_ciqual.py`). English names now; the format keeps names per language for Spanish and Russian.
+- Packaged foods, all through the Camera button in Add food:
+  - **Barcode**: `src/lib/barcode.ts` reads it from the photo with the browser's BarcodeDetector (Chrome on Android; not Safari, where the photo just goes on to recognition). First `state.products[code]`, else the Worker's `/product` looks it up in Open Food Facts (server side, so the person's IP isn't sent; ODbL attribution in Add food). Found: one item per 100 g with the serving (or 100 g) as the editable amount (`productItem`).
+  - **Nutrition table**: `/parse-food` returns `label` (per 100 g/ml: kcal, protein, fat, carbs, fiber or null, serving) instead of items when the photo is a label. If the barcode before it wasn't in Open Food Facts, the label is remembered under that barcode in `state.products` (schema v7), so next time the barcode is enough.
+  - New food (My foods) has "Fill from a label photo": fills the form for one serving (or 100 g).
+  - Label values come from the package, not CIQUAL: the "calories from the database, not the model" rule doesn't apply, since the model copies printed numbers.
 - Wrap the provider in one function (`parseFood(text | image) → items[]`) so switching providers is a one-file change.
 
 ## Data and privacy

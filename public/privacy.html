@@ -48,7 +48,7 @@
     <main>
       <a class="back" href="./">← Back to Fuel & Burn</a>
       <h1>Privacy policy</h1>
-      <p>Fuel & Burn · Last updated 17 October 2026</p>
+      <p>Fuel & Burn · Last updated 18 October 2026</p>
 
       <div class="card">
         <h2>In short</h2>
@@ -90,12 +90,14 @@
       <ul>
         <li><strong>Text:</strong> what you typed about your meal.</li>
         <li><strong>Voice:</strong> a recording of up to 30 seconds, made only after you tap “Speak”, turned into text and then treated like typed text.</li>
-        <li><strong>Photo:</strong> the photo you take or pick, made smaller on your device first (about 768 pixels), with any note you typed about it.</li>
+        <li><strong>Photo:</strong> the photo you take or pick, made smaller on your device first (about 1,280 pixels), with any note you typed about it. A photo of a nutrition table is read the same way, for its values.</li>
+        <li><strong>Barcode:</strong> if a photo shows a product barcode, your device reads the number itself and only the number is sent, not the photo.</li>
       </ul>
       <p>
         This goes over an encrypted connection to a small relay we run on Cloudflare Workers, which passes it to
         OpenAI’s API and returns a list of foods and amounts. The calories are then looked up on your device in the food table.
-        Nothing about you is sent with it: no name, no weight, no diary.
+        A barcode number goes from the relay to Open Food Facts, an open product database, to look the product up;
+        Open Food Facts sees the relay’s address, not yours. Nothing about you is sent with any of it: no name, no weight, no diary.
       </p>
       <p>
         <strong>What is kept:</strong> the relay does not store your text, audio or photos. The app does not keep the
@@ -128,7 +130,8 @@
       <h2>Other companies involved</h2>
       <ul>
         <li><strong>Cloudflare, Inc.</strong>: delivers the site and runs the recognition relay.</li>
-        <li><strong>OpenAI, L.L.C.</strong>: turns food text, voice and photos into a list of foods.</li>
+        <li><strong>OpenAI, L.L.C.</strong>: turns food text, voice and photos into a list of foods, and reads nutrition tables.</li>
+        <li><strong>Open Food Facts</strong> (France, non-profit): looks up packaged products by barcode. It receives only the barcode number, from our relay.</li>
         <li><strong>Hetzner Online GmbH</strong> (Germany): hosts the app’s files.</li>
       </ul>
       <p>

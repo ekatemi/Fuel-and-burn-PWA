@@ -91,6 +91,7 @@ export const freshState = (): AppState => ({
   favs: defaultFavs(),
   dismissed: {},
   lastBackupAt: null,
+  products: {},
   meals: [],
   activities: [],
   activityShortcuts: ['steps', 'walk', 'run', 'other'],

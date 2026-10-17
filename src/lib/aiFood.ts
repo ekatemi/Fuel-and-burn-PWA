@@ -1,7 +1,8 @@
 // Food recognition by AI, through our proxy (worker/), for text the on-device parser didn't know.
 // The proxy returns foods with an English search term and grams; calories come from CIQUAL here.
+// A nutrition label photo comes back as the label's own values, and a barcode as Open Food Facts' values.
 // This is the one file that knows about the provider.
-import type { DraftItem } from '../types'
+import type { DraftItem, KnownItem, Product } from '../types'
 import { dbItem, headWords, nameOf, stem, words, type DbFood, type FoodDb } from './foodDb'
 
 /** The proxy's address. Without it the app works as before, without AI. */
@@ -45,21 +46,55 @@ export async function transcribeSpeech(audio: Blob): Promise<string> {
   return ((await response.json()) as { text: string }).text
 }
 
-/** Sends only the food text or photo: nothing about the person. */
-async function requestFoods(text: string, image?: string): Promise<ParsedFood[]> {
+/** Posts to one of the proxy's addresses (next to /parse-food). */
+async function post<T>(route: string, body: unknown): Promise<T> {
   let response: Response
   try {
-    response = await fetch(AI_URL!, {
+    response = await fetch(new URL(route, AI_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, image }),
+      body: JSON.stringify(body),
     })
   } catch {
     throw new AiError('unavailable')
   }
   if (response.status === 429) throw new AiError('rate_limited')
   if (!response.ok) throw new AiError('unavailable')
-  return ((await response.json()) as { items: ParsedFood[] }).items
+  return (await response.json()) as T
+}
+
+/** Sends only the food text or photo: nothing about the person. */
+const requestFoods = (text: string, image?: string) =>
+  post<{ items: ParsedFood[]; label: Product | null }>('parse-food', { text, image })
+
+/** A packaged food by its barcode, from Open Food Facts through the proxy; null if it isn't there. */
+export async function lookupBarcode(code: string): Promise<Product | null> {
+  return (await post<{ product: Product | null }>('product', { code })).product
+}
+
+/** A product to log: its label values per 100 g, a serving (or 100 g) to start with, the amount editable. */
+export function productItem(product: Product, amount = product.serving ?? 100): KnownItem {
+  const per100 = (n: number | null) => Math.round((n ?? 0) * 10) / 10
+  return {
+    food: {
+      name: product.name,
+      portion: `100 ${product.unit}`,
+      kcal: Math.round(product.kcal),
+      protein: per100(product.protein),
+      carbs: per100(product.carbs),
+      fat: per100(product.fat),
+      fiber: per100(product.fiber),
+    },
+    qty: amount / 100,
+    size: 'M',
+    amount: { value: amount, unit: product.unit },
+    portionGrams: 100,
+  }
+}
+
+/** Reads a nutrition label photo; null if the photo isn't one. */
+export async function readLabel(image: string): Promise<Product | null> {
+  return (await requestFoods('', image)).label
 }
 
 const COOKED = ['cooked', 'boiled', 'fried', 'baked', 'roasted', 'grilled', 'steamed']
@@ -116,11 +151,16 @@ export function dishName(dish: string): string | undefined {
   return name ? name[0].toLocaleUpperCase() + name.slice(1) : undefined
 }
 
-/** Turns the text, or a photo with an optional note, into items:
- *  the best database match with the AI's amount, else a choice for the user. */
-export async function recognizeFood(text: string, db: FoodDb, image?: string): Promise<DraftItem[]> {
-  const foods = await requestFoods(text, image)
-  return foods.map((food): DraftItem => {
+/** Turns the text, or a photo with an optional note, into items: the best database match with the AI's amount,
+ *  else a choice for the user. A label photo gives its product instead, as one item. */
+export async function recognizeFood(
+  text: string,
+  db: FoodDb,
+  image?: string,
+): Promise<{ items: DraftItem[]; product: Product | null }> {
+  const { items: foods, label } = await requestFoods(text, image)
+  if (label) return { items: [productItem(label)], product: label }
+  const items = foods.map((food): DraftItem => {
     const grams = food.grams > 0 ? Math.round(food.grams) : undefined
     const match = bestMatch(db, food)
     const dish = dishName(food.dish)
@@ -128,4 +168,5 @@ export async function recognizeFood(text: string, db: FoodDb, image?: string): P
       ? { ...dbItem(match, grams), dish }
       : { unknown: true, raw: food.name, query: food.fallback || food.query, amount: grams, dish }
   })
+  return { items, product: null }
 }

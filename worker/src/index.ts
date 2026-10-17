@@ -2,6 +2,8 @@
 // /parse-food: the app posts the words it couldn't recognise, or a photo of a meal (with an optional note);
 // OpenAI turns them into foods with an English search term and a weight. Photos are not stored. Calories are not asked for: the app looks each food up in its
 // own database (CIQUAL), so numbers stay consistent.
+// A photo of a nutrition label comes back as the label's values per 100 g instead.
+// /product: a barcode, looked up in Open Food Facts (from here, so the person's IP address isn't sent there).
 // /transcribe: a short voice note (any language) to text.
 // Nothing is stored except a daily request count per hashed IP address.
 
@@ -32,6 +34,21 @@ export interface ParsedFood {
   grams: number
   /** Pieces or portions, when the text says how many. */
   count: number | null
+}
+
+/** What a nutrition label says, per 100 g (or 100 ml for drinks). */
+export interface Label {
+  /** The product name as printed, or a short description. */
+  name: string
+  unit: 'g' | 'ml'
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  /** Not every label gives fiber. */
+  fiber: number | null
+  /** One serving as printed on the label, in g or ml, if it gives one. */
+  serving: number | null
 }
 
 const MAX_TEXT = 500
@@ -80,13 +97,40 @@ Photos:
 - Count what was served, or what is left on the plate if the note says so. Include visible oil, sauce and dressing.
 - Any text that comes with the photo is a note from the person and wins over what you see: what the dish is, hidden
   ingredients, how much they ate ("half"). For a photo, raw is a short description of the food in the note's language, else English.
-If the text or photo is not about food, return an empty list.`
+Nutrition labels:
+- If the photo shows a nutrition facts table (from a package), fill label and return an empty items list.
+- Copy the values per 100 g (or per 100 ml for drinks): kcal, protein, fat, carbohydrates (total, not "of which sugars"), fiber.
+  If the label gives kJ only, divide by 4.184. If it gives values per serving only, convert them to 100 g using the serving size.
+- fiber: null if the label doesn't list it. serving: the serving or portion size in g or ml if printed, else null.
+- name: the product name if you can read it on the package, in its language; else a short description like "Yogurt".
+- Use a comma or point as printed; return plain numbers. For any photo without a nutrition table, label is null.
+If the text or photo is not about food, return an empty list and a null label.`
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['items'],
+  required: ['items', 'label'],
   properties: {
+    label: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name', 'unit', 'kcal', 'protein', 'fat', 'carbs', 'fiber', 'serving'],
+          properties: {
+            name: { type: 'string' },
+            unit: { type: 'string', enum: ['g', 'ml'] },
+            kcal: { type: 'number' },
+            protein: { type: 'number' },
+            fat: { type: 'number' },
+            carbs: { type: 'number' },
+            fiber: { type: ['number', 'null'] },
+            serving: { type: ['number', 'null'] },
+          },
+        },
+      ],
+    },
     items: {
       type: 'array',
       items: {
@@ -148,7 +192,7 @@ interface FoodInput {
   image: string | null
 }
 
-async function parseFood(env: Env, { text, image }: FoodInput): Promise<ParsedFood[]> {
+async function parseFood(env: Env, { text, image }: FoodInput): Promise<{ items: ParsedFood[]; label: Label | null }> {
   const input = image
     ? [
         {
@@ -177,7 +221,52 @@ async function parseFood(env: Env, { text, image }: FoodInput): Promise<ParsedFo
   const message = data.output?.find((o) => o.type === 'message')
   const out = message?.content?.find((c) => c.type === 'output_text')?.text
   if (!out) throw new Error('OpenAI returned no text')
-  return (JSON.parse(out) as { items: ParsedFood[] }).items
+  return JSON.parse(out) as { items: ParsedFood[]; label: Label | null }
+}
+
+/** EAN-8, UPC-A, EAN-13 and GTIN-14. */
+const BARCODE = /^\d{8,14}$/
+const OFF_FIELDS = 'product_name,brands,nutriments,serving_quantity,product_quantity_unit'
+
+interface OffProduct {
+  product_name?: string
+  brands?: string
+  serving_quantity?: number | string
+  product_quantity_unit?: string
+  nutriments?: Record<string, number | string | undefined>
+}
+
+/** A product from Open Food Facts as a label, or null if it isn't there or has no calories. */
+async function lookupProduct(code: string): Promise<Label | null> {
+  const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`, {
+    headers: { 'User-Agent': 'FuelAndBurn/1.0 (info@mikhaylova.dev)' },
+  })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Open Food Facts ${response.status}`)
+  const data = (await response.json()) as { status?: number; product?: OffProduct }
+  const p = data.product
+  if (data.status !== 1 || !p?.nutriments) return null
+  const n = (key: string) => {
+    const value = Number(p.nutriments![`${key}_100g`])
+    return Number.isFinite(value) ? value : null
+  }
+  const kcal = n('energy-kcal') ?? (n('energy') != null ? n('energy')! / 4.184 : null)
+  if (kcal == null) return null
+  // "Hacendado Yogur natural", but "Nutella", not "Nutella Nutella".
+  const brand = p.brands?.split(',')[0].trim() ?? ''
+  const product = p.product_name?.trim() ?? ''
+  const name = (product.toLowerCase().includes(brand.toLowerCase()) ? product : `${brand} ${product}`).trim() || 'Packaged food'
+  const serving = Number(p.serving_quantity)
+  return {
+    name,
+    unit: p.product_quantity_unit === 'ml' ? 'ml' : 'g',
+    kcal,
+    protein: n('proteins') ?? 0,
+    fat: n('fat') ?? 0,
+    carbs: n('carbohydrates') ?? 0,
+    fiber: n('fiber'),
+    serving: serving > 0 ? serving : null,
+  }
 }
 
 // No prompt: given a hint like "someone says what they ate", the model invents a meal from silence.
@@ -206,7 +295,14 @@ const ROUTES: Record<string, { read: (request: Request) => Promise<unknown>; run
       if (image != null && (image.length > MAX_IMAGE_CHARS || !IMAGE_DATA_URL.test(image))) return null
       return text || image ? { text, image } : null
     },
-    run: async (env, input: FoodInput) => ({ items: await parseFood(env, input) }),
+    run: (env, input: FoodInput) => parseFood(env, input),
+  },
+  '/product': {
+    async read(request) {
+      const body = (await request.json().catch(() => null)) as { code?: unknown } | null
+      return typeof body?.code === 'string' && BARCODE.test(body.code) ? body.code : null
+    },
+    run: async (_env, code: string) => ({ product: await lookupProduct(code) }),
   },
   '/transcribe': {
     async read(request) {

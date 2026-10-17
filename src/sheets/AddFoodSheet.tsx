@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { CameraIcon, CloseIcon, MicIcon, StopIcon } from '../components/Icons'
 import { QuickChips } from '../components/QuickChips'
 import { Sheet } from '../components/Sheet'
-import { AiError, aiAvailable, recognizeFood, transcribeSpeech } from '../lib/aiFood'
+import { AiError, aiAvailable, lookupBarcode, productItem, recognizeFood, transcribeSpeech } from '../lib/aiFood'
+import { readBarcode } from '../lib/barcode'
 import { dbItem, loadFoodDb, nameOf, type DbFood, type FoodDb } from '../lib/foodDb'
 import { combineDish, fmt, fmtQty, groupItems, isKnown, itemsToLog, kcalOf, MEAL_SLOTS, unmatchedDishes, nowTime, SIZE_NAMES, slotForTime, SLOT_NAMES, SUSPICIOUS_KCAL } from '../lib/model'
 import { parseFoodText } from '../lib/parseFood'
 import { shrinkPhoto } from '../lib/photo'
 import { canRecord, startRecording, type Recording } from '../lib/recorder'
 import { useApp } from '../state/AppContext'
-import type { DraftItem, KnownItem, MealSlot, PortionSize } from '../types'
+import type { DraftItem, KnownItem, MealSlot, PortionSize, Product } from '../types'
 
 const SIZES: PortionSize[] = ['S', 'M', 'L']
 const MIN_SEARCH = 2
@@ -55,6 +56,8 @@ export function AddFoodSheet() {
   const recording = useRef<Recording | null>(null)
   /** The meal photo, made small, as a data URL. It is sent for recognition and not kept. */
   const [photo, setPhoto] = useState<string | null>(null)
+  /** A barcode Open Food Facts didn't know: the next label photo is remembered under it. */
+  const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
   const galleryInput = useRef<HTMLInputElement>(null)
 
@@ -99,7 +102,18 @@ export function AddFoodSheet() {
     }
     setRecognizing(true)
     try {
-      const recognized = await recognizeFood(input.trim(), db ?? (await loadFoodDb()), image ?? undefined)
+      const { items: recognized, product } = await recognizeFood(input.trim(), db ?? (await loadFoodDb()), image ?? undefined)
+      if (product) {
+        // A label adds its product to the list, like a search result, and the photo has done its job.
+        addProduct(product, 'Read from the label')
+        setPhoto(null)
+        if (unknownBarcode) {
+          const code = unknownBarcode
+          update((s) => ({ ...s, products: { ...s.products, [code]: product } }))
+          setUnknownBarcode(null)
+        }
+        return
+      }
       setItems(recognized)
       if (!recognized.length) {
         setAiNote(image ? 'Couldn’t see food in this photo. Add a note about it, or type what you ate.' : '')
@@ -138,8 +152,46 @@ export function AddFoodSheet() {
     }
   }
 
+  const addProduct = (product: Product, how: string) => {
+    setItems((list) => [...list, productItem(product)])
+    setTried(true)
+    setAiNote(`${how}: ${product.name}${product.fiber == null ? ' (no fiber on the label)' : ''}. Set how much you had.`)
+  }
+
+  /** A barcode in the photo: a product remembered here, else Open Food Facts. True when it was found. */
+  const fromBarcode = async (code: string) => {
+    const remembered = state.products[code]
+    if (remembered) {
+      addProduct(remembered, 'Found by barcode')
+      return true
+    }
+    if (!aiAvailable()) return false
+    setRecognizing(true)
+    try {
+      const product = await lookupBarcode(code)
+      if (product) addProduct(product, 'Found by barcode')
+      return product != null
+    } catch {
+      return false
+    } finally {
+      setRecognizing(false)
+    }
+  }
+
   const pickPhoto = async (file: File | undefined) => {
     if (!file) return
+    setAiNote('')
+    const code = await readBarcode(file)
+    if (code) {
+      if (await fromBarcode(code)) return
+      setUnknownBarcode(code)
+      setAiNote(
+        aiAvailable()
+          ? 'This product isn’t in the barcode database yet. Take a photo of its nutrition table: it’s remembered for next time.'
+          : 'Barcodes need a connection. You can search for the food below.',
+      )
+      return
+    }
     let image: string
     try {
       image = await shrinkPhoto(file)
@@ -292,6 +344,7 @@ export function AddFoodSheet() {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
+      {aiAvailable() && <span className="muted" style={{ fontSize: 12 }}>The camera also reads a nutrition table or a barcode.</span>}
       {photo && (
         <div className="photo-note">
           <img src={photo} alt="Your meal" />
@@ -319,7 +372,7 @@ export function AddFoodSheet() {
             className="bigbtn secondary voice"
             style={{ flex: 1 }}
             disabled={recognizing || voice !== 'idle'}
-            aria-label="Take a photo of your meal"
+            aria-label="Take a photo of your meal, a nutrition table or a barcode"
             onClick={() => cameraInput.current?.click()}
           >
             <CameraIcon />
@@ -465,7 +518,9 @@ export function AddFoodSheet() {
           ? `Add ${fmt(total)} kcal to ${SLOT_NAMES[slot].toLowerCase()}`
           : `Add to ${SLOT_NAMES[slot].toLowerCase()}`}
       </button>
-      <p className="muted fine">Food data: ANSES-CIQUAL 2020 food composition table, Licence Ouverte.</p>
+      <p className="muted fine">
+        Food data: ANSES-CIQUAL 2020 food composition table, Licence Ouverte. Packaged products: Open Food Facts, ODbL.
+      </p>
     </Sheet>
   )
 }
