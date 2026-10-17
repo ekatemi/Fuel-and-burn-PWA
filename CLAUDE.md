@@ -30,6 +30,7 @@ Bottom navigation (Material 3), three tabs: **Today · Fuel · Burn**. Trends is
 
 **Today** (answer at a glance):
 1. Period selector: Today / Week / Month / Year (Week by default; "All" was dropped as it added nothing over Year). Today shows kcal eaten so far against the day's plan range and what is left of it; no daily deficit or status pill, since the day isn't over.
+   Week is the calendar week; Month is the past 30 days and Year the past 12 months, both averaged over finished days with food logged (`rangeSummary`). No sample or made-up history anywhere outside "Look around with sample data".
 2. Goal chip, e.g. "🎯 Lose fat · Gentle", which opens the goal sheet.
 3. One horizontal bar from 0 to the scale end:
    - scale end = max(maintenance, top of goal range): maintenance for Lose fat, goal max for Build muscle;

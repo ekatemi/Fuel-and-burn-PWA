@@ -31,7 +31,7 @@ function soFarText({ avgEaten, avgBurn }: PeriodData, goal: Goal, numbers: boole
 export function TodayView() {
   const { state, update, today, maint, burnOn, weighIns, openSheet } = useApp()
   const { goal, meals, numbers } = state
-  const period = periodData(state.period, meals, today, maint, burnOn)
+  const period = periodData(state.period, meals, today, burnOn)
   const periodStatus = status(period.balance, period.avgBurn, goal)
   const week = weekSummary(meals, today, burnOn)
   // The most recent earlier day this week that ended clearly above maintenance.
