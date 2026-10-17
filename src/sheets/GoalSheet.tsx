@@ -6,9 +6,9 @@ import { useApp } from '../state/AppContext'
 import type { Goal } from '../types'
 
 export function GoalSheet() {
-  const { state, maint, update, closeSheet, showToast } = useApp()
+  const { state, maint, resting, update, closeSheet, showToast } = useApp()
   const [draft, setDraft] = useState<Goal>(state.goal)
-  const [intakeLo, intakeHi] = goalIntake(maint, draft)
+  const [intakeLo, intakeHi] = goalIntake(maint, draft, resting)
 
   const save = () => {
     update((s) => ({ ...s, goal: draft }))
@@ -33,7 +33,7 @@ export function GoalSheet() {
             GOALS[draft.type].name
           )}
         </div>
-        <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{goalChangeText(draft, maint)}</span>
+        <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{goalChangeText(draft, maint, resting)}</span>
       </div>
       <button className="bigbtn primary" onClick={save}>
         Save goal

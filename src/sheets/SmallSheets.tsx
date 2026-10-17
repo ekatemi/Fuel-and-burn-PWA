@@ -44,10 +44,10 @@ export function FavsSheet() {
 }
 
 export function TargetsSheet() {
-  const { state, maint, update, closeSheet } = useApp()
+  const { state, maint, resting, update, closeSheet } = useApp()
   const { targets } = state
   const kcal = 4 * targets.protein + 9 * targets.fat + 4 * targets.carbs
-  const plan = planKcal(state.goal, maint)
+  const plan = planKcal(state.goal, maint, resting)
   const fits = Math.abs(kcal - plan) <= 150
 
   const adjust = (key: MacroKey, delta: number) =>

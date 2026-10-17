@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { freshState } from '../data/demo'
 import { useToday } from '../lib/dates'
 import { newId } from '../lib/ids'
-import { dayBurn, maintenance, nowTime, toMeal } from '../lib/model'
+import { dayBurn, maintenance, nowTime, restingBurn, toMeal } from '../lib/model'
 import { learnMaintenance, type MaintenanceEstimate } from '../lib/tdee'
 import { currentBodyFat, trendOn, weighInList, type WeighIn } from '../lib/weight'
 import type { AppState, KnownItem, MealSlot, SheetName } from '../types'
@@ -41,6 +41,8 @@ interface AppContextValue {
   maint: number
   /** How maint was reached: its range, the formula it started from and how much data it learned from. */
   maintEstimate: MaintenanceEstimate | null
+  /** Estimated resting burn, kcal a day: the floor for any plan. 0 before there is a profile. */
+  resting: number
   /** Burn for a day: maintenance adjusted for that day's logged activity. */
   burnOn: (date: string) => number
   /** The day shown in the Fuel diary. */
@@ -133,6 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ? learnMaintenance(state.meals, weighIns, today, maintenance(state.profile, bodyWeight, bodyFatPct))
       : null
     const maint = maintEstimate?.kcal ?? DEFAULT_MAINT
+    const resting = state.profile ? Math.round(restingBurn(state.profile, bodyWeight, bodyFatPct)) : 0
 
     return {
       state,
@@ -146,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       bodyFatPct,
       maint,
       maintEstimate,
+      resting,
       burnOn: (date) => dayBurn(maint, state.meals, state.activities, date),
       diaryDate: pickedDate && pickedDate < today ? pickedDate : today,
       setDiaryDate: (date) => setPickedDate(date < today ? date : null),

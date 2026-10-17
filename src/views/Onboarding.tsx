@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { goalChangeText, GoalPicker } from '../components/GoalPicker'
 import { EMPTY_PROFILE, parseProfile, ProfileFields } from '../components/ProfileFields'
 import { sampleState } from '../data/demo'
-import { fmt, goalIntake, maintenance, planKcal, suggestedTargets } from '../lib/model'
+import { fmt, goalIntake, maintenance, planKcal, restingBurn, suggestedTargets } from '../lib/model'
 import { PRIVACY_URL } from '../lib/links'
 import { useApp } from '../state/AppContext'
 import { useBackup } from '../state/backup'
@@ -118,6 +118,7 @@ function FirstRun() {
 
   const parsed = parseProfile(draft)
   const maint = 'profile' in parsed ? maintenance(parsed.profile, parsed.weight) : null
+  const resting = 'profile' in parsed ? restingBurn(parsed.profile, parsed.weight) : 0
 
   /** The consent record, or null after asking for the boxes to be ticked. */
   const consent = (): Consent | null => {
@@ -132,7 +133,7 @@ function FirstRun() {
     if (!given) return
     if ('error' in parsed) return setError(parsed.error)
     const { profile, weight } = parsed
-    const plan = planKcal(goal, maintenance(profile, weight))
+    const plan = planKcal(goal, maintenance(profile, weight), restingBurn(profile, weight))
     update((s) => ({
       ...s,
       profile,
@@ -190,10 +191,10 @@ function FirstRun() {
               You burn about {fmt(maint)} kcal a day
             </span>
             <div className="headline" style={{ fontSize: 22 }}>
-              Eat about {goalIntake(maint, goal).map(fmt).join('–')}
+              Eat about {goalIntake(maint, goal, resting).map(fmt).join('–')}
               <small style={{ color: 'inherit' }}>kcal a day</small>
             </div>
-            <span style={{ fontSize: 13 }}>{goalChangeText(goal, maint)}</span>
+            <span style={{ fontSize: 13 }}>{goalChangeText(goal, maint, resting)}</span>
           </section>
         )}
 

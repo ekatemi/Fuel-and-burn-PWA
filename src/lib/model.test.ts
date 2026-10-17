@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './dates'
-import { periodData, quickList } from './model'
+import { goalIntake, periodData, quickList, status } from './model'
 import type { Meal } from '../types'
 
 const TODAY = '2026-10-17'
@@ -48,5 +48,18 @@ describe('quickList', () => {
     expect(quickList([], [])).toEqual([])
     const meals = [meal('2026-10-01', 100, 'Kefir'), meal('2026-10-02', 100, 'Kefir'), meal('2026-10-02', 300, 'Pasta')]
     expect(quickList([], meals).map((e) => e.food.name)).toEqual(['Kefir'])
+  })
+})
+
+describe('goalIntake', () => {
+  const steadyCut = { type: 'cut' as const, pace: 'steady' as const }
+
+  it('never goes below resting burn', () => {
+    // Sitting most of the day: maintenance 1.2 × resting 1500 = 1800; −20% would be 1440.
+    expect(goalIntake(1800, steadyCut, 1500)).toEqual([1500, 1530])
+  })
+
+  it('counts eating at the floor as on target', () => {
+    expect(status(1500 - 1800, 1800, steadyCut, 1500).kind).toBe('on')
   })
 })

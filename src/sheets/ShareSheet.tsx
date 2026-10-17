@@ -8,7 +8,7 @@ import { useApp } from '../state/AppContext'
 const NOTE_DELAY_MS = 350
 
 export function ShareSheet() {
-  const { state, today, diaryDate, maint, burnOn, showToast } = useApp()
+  const { state, today, diaryDate, maint, resting, burnOn, showToast } = useApp()
   const [showKcal, setShowKcal] = useState(false)
   const [note, setNote] = useState('')
   const [preview, setPreview] = useState('')
@@ -18,7 +18,7 @@ export function ShareSheet() {
   const date = state.view === 'fuel' ? diaryDate : today
   const meals = mealsOn(state.meals, date)
   const week = weekSummary(state.meals, today, burnOn)
-  const weekStatus = week.loggedDays ? status(week.balance, maint, state.goal) : null
+  const weekStatus = week.loggedDays ? status(week.balance, maint, state.goal, resting) : null
 
   const input: ShareCardInput = {
     meals,

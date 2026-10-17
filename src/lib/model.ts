@@ -130,15 +130,21 @@ export function goalRange(goal: Goal): Range {
   return paces[goal.pace] ?? paces.gentle
 }
 
+/** Never suggested below this, whatever the formulas say. */
 const MIN_INTAKE = 1250
 
-export function goalIntake(burn: number, goal: Goal): Range {
+/**
+ * The kcal-a-day range for a goal, never below `floor`: the person's estimated resting burn,
+ * so even the steadiest pace never asks someone to eat less than their body uses at rest.
+ */
+export function goalIntake(burn: number, goal: Goal, floor = 0): Range {
   const [lo, hi] = goalRange(goal)
-  return [r10(Math.max(MIN_INTAKE, burn * (1 + lo))), r10(Math.max(MIN_INTAKE, burn * (1 + hi)))]
+  const min = Math.max(MIN_INTAKE, floor)
+  return [r10(Math.max(min, burn * (1 + lo))), r10(Math.max(min, burn * (1 + hi)))]
 }
 
-export function planKcal(goal: Goal, maint: number) {
-  const [a, b] = goalIntake(maint, goal)
+export function planKcal(goal: Goal, maint: number, floor = 0) {
+  const [a, b] = goalIntake(maint, goal, floor)
   return (a + b) / 2
 }
 
@@ -153,10 +159,11 @@ export interface Status {
   text: string
 }
 
-export function status(balance: number, burn: number, goal: Goal): Status {
-  const [lo, hi] = goalRange(goal)
-  const balLo = burn * lo
-  const balHi = burn * hi
+export function status(balance: number, burn: number, goal: Goal, floor = 0): Status {
+  // The goal range as a balance, raised with the intake range when the floor lifts it.
+  const [intakeLo, intakeHi] = goalIntake(burn, goal, floor)
+  const balLo = intakeLo - burn
+  const balHi = intakeHi - burn
   if (balance >= balLo - 40 && balance <= balHi + 40) {
     return {
       kind: 'on',
