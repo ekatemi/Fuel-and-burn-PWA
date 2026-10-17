@@ -441,6 +441,16 @@ export function itemsToLog(items: DraftItem[]): KnownItem[] {
 export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'snack', 'lunch', 'dinner']
 export const SLOT_NAMES: Record<MealSlot, string> = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }
 
+/** Order and headings of the day's food, grouped by meal: snacks last, whenever they were eaten. */
+const GROUP_ORDER: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
+export const GROUP_NAMES: Record<MealSlot, string> = { ...SLOT_NAMES, snack: 'Snacks' }
+
+/** A day's food by meal, each by time; meals with nothing logged are left out. */
+export function mealGroups(meals: Meal[]): { slot: MealSlot; meals: Meal[] }[] {
+  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
+  return GROUP_ORDER.map((slot) => ({ slot, meals: sorted.filter((m) => m.slot === slot) })).filter((g) => g.meals.length)
+}
+
 /** The usual meal at a time of day (HH:MM), used as the default and for entries from before slots. */
 export function slotForTime(time: string): MealSlot {
   if (time < '05:00') return 'snack'
