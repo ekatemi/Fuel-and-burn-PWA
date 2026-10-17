@@ -236,3 +236,7 @@ textarea{width:100%;min-height:88px;border-radius:12px;border:1px solid var(--ou
 
 svg text{font-family:var(--body)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px 0;font-size:15px;line-height:1.45;cursor:pointer}
+.check input{flex:none;width:24px;height:24px;margin:0;accent-color:var(--burn)}
+.check input:focus-visible{outline:3px solid var(--burn);outline-offset:2px}
+.check + .check{margin-top:-14px}

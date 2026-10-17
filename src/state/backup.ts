@@ -1,5 +1,6 @@
 import { todayKey } from '../lib/dates'
 import { useApp } from './AppContext'
+import type { Consent } from '../types'
 import { migrate, SCHEMA_VERSION, type StoredDoc } from './schema'
 
 const APP_ID = 'fuel-and-burn'
@@ -73,7 +74,8 @@ export function useBackup() {
     showToast('Backup saved to your downloads')
   }
 
-  const restoreBackup = async () => {
+  /** With `consent`, a backup made before consent was asked for gets it, so it isn't asked for twice. */
+  const restoreBackup = async (consent?: Consent) => {
     const file = await pickFile()
     if (!file) return
     const backup = parseBackup(await file.text())
@@ -82,7 +84,8 @@ export function useBackup() {
     const saved = backup.exportedAt ? ` from ${new Date(backup.exportedAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}` : ''
     const hasData = state.profile !== null || state.meals.length > 0
     if (hasData && !window.confirm(`Replace everything on this device with the backup${saved}?`)) return
-    replaceDoc(backup.doc)
+    const restored = backup.doc
+    replaceDoc(consent && !restored.state.consent ? { ...restored, state: { ...restored.state, consent } } : restored)
     showToast(`Backup${saved} restored`)
   }
 

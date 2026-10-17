@@ -88,18 +88,21 @@ export function TopBar({ title, subtitle, withBack }: TopBarProps) {
           <button role="menuitem" onClick={pick(exportBackup)}>
             Export backup
           </button>
-          <button role="menuitem" onClick={pick(restoreBackup)}>
+          <button role="menuitem" onClick={pick(() => restoreBackup())}>
             Restore from backup
           </button>
           <button
             role="menuitem"
             onClick={pick(() => {
-              if (window.confirm('Erase your diary, profile and saved foods, and start over?')) resetData()
+              const ok = window.confirm(
+                'Delete your diary, weigh-ins, profile and saved foods from this device? This can’t be undone. Export a backup first if you want to keep them.',
+              )
+              if (ok) resetData()
             })}
           >
-            Start over
+            Delete all my data
           </button>
-          <button role="menuitem" onClick={pick(() => showToast('Fuel & Burn. Your data stays on this device.'))}>
+          <button role="menuitem" onClick={pick(() => showToast('Fuel & Burn. A wellness app, not medical advice. Your data stays on this device.'))}>
             About
           </button>
         </div>

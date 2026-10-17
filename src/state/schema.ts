@@ -8,7 +8,7 @@ import { newId } from '../lib/ids'
 import type { AppState } from '../types'
 import { emptySync, type SyncMeta } from './sync'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export interface StoredDoc {
   schemaVersion: number
@@ -51,6 +51,8 @@ const MIGRATIONS: Record<number, (doc: Raw) => Raw> = {
     schemaVersion: 4,
     state: { ...doc.state, period: doc.state.period === 'all' ? 'year' : doc.state.period },
   }),
+  // v4: no record of consent. It was never asked for, so it is asked for on the next start.
+  4: (doc) => ({ ...doc, schemaVersion: 5, state: { ...doc.state, consent: null } }),
 }
 
 /** Brings saved or imported data to the current format, or returns null if it isn't ours. */

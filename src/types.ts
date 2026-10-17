@@ -89,10 +89,18 @@ export interface UnknownItem {
 }
 export type DraftItem = KnownItem | UnknownItem
 
+/** When the person confirmed they are 18 or over and agreed to their health data being kept on the device. */
+export interface Consent {
+  /** ISO timestamp. */
+  at: string
+}
+
 export interface AppState {
   view: View
   /** null until onboarding is finished. */
   profile: Profile | null
+  /** null until given; the app asks for it before anything else. */
+  consent: Consent | null
   period: Period
   goal: Goal
   numbers: boolean

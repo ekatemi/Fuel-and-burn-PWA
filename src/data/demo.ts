@@ -96,6 +96,7 @@ const SAMPLE_PROFILE: Profile = { sex: 'female', age: 37, heightCm: 160, activit
 export const freshState = (): AppState => ({
   view: 'today',
   profile: null,
+  consent: null,
   period: 'week',
   goal: { type: 'cut', pace: 'gentle' },
   numbers: true,

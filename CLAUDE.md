@@ -111,6 +111,7 @@ See `activity.ts`. All results are NET kcal (above resting) to avoid double coun
 - **Sync-ready storage** (`src/state/`): `storage.ts` is the only place that reads or writes saved data (IndexedDB, localStorage fallback). `schema.ts` holds `SCHEMA_VERSION` and the migrations; any change to the stored format bumps the version and adds a step. Records have random UUIDs; `sync.ts` keeps a change log (last change per record and setting, deletions) for a future sync or merging restore.
 - Provide **export and import** (JSON), since browser data can be cleared.
 - Weight, body fat, food and activity are health data under GDPR. Requires explicit, separate consent at onboarding (unticked by default), 18+ only, "delete all my data" in settings.
+- Done: onboarding opens with "Before you start": two unticked boxes (18 or older; health data kept on the device, food sent to the AI provider) and the not-medical-advice note. `state.consent` keeps when they were ticked; without it the app shows only that screen (data from before v5 is asked once, or can be deleted). Sample data and restore need the boxes too. "Delete all my data" is in the ⋮ menu.
 - Privacy policy draft exists; keep it in sync (no Health Connect while it is a PWA; mention food photos and the AI provider).
 - No analytics or ad SDKs without consent.
 

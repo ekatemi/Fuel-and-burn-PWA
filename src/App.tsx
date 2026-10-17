@@ -53,7 +53,7 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [sheet, closeSheet])
 
-  if (!state.profile) {
+  if (!state.profile || !state.consent) {
     return (
       <>
         <Onboarding />
