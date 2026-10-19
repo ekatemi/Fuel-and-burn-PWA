@@ -37,6 +37,12 @@ describe('quantities', () => {
     expect(parse('2 eggs')).toEqual(['2 × Egg'])
     expect(parse('eggs 2')).toEqual(['2 × Egg'])
     expect(parse('eggs x2')).toEqual(['2 × Egg'])
+  })
+
+  it('counts yolks and whites on their own, not as whole eggs', () => {
+    expect(parse('2 egg yolks and 3 egg whites')).toEqual(['2 × Egg yolk', '3 × Egg white'])
+    expect(parse('scrambled eggs from 2 yolks and 3 whites')).toEqual(['2 × Egg yolk', '3 × Egg white'])
+    expect(parse('white rice')).toEqual(['Rice'])
     expect(parse('three bananas')).toEqual(['3 × Banana'])
     expect(parse('dos cervezas')).toEqual(['2 × Beer'])
   })

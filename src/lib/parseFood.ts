@@ -133,9 +133,13 @@ export function parseFoodText(text: string): DraftItem[] {
     // "protein shake" isn't also found again as "shake".
     let rest = part
     let found = false
+    // "Scrambled eggs from 2 yolks": once a part of a food is named, the whole food isn't added as well.
+    const named = new Set<string>()
     for (const food of FOODS) {
+      if (named.has(food.name)) continue
       const hit = food.keywords.map((k) => findWord(rest, k)).find(Boolean)
       if (!hit) continue
+      if (food.partOf) named.add(food.partOf)
       found = true
       out.push(itemFor(food, quantity, size))
       rest = rest.slice(0, hit.start) + ' '.repeat(hit.end - hit.start) + rest.slice(hit.end)

@@ -16,6 +16,8 @@ export interface CatalogFood extends Food {
   /** Weight of one portion, in g, or ml for drinks. */
   grams: number
   unit: 'g' | 'ml'
+  /** The whole food this is a part of (a yolk of an egg): when the part is named, the whole isn't counted too. */
+  partOf?: string
 }
 
 /** A packaged food as its label gives it, per 100 g (or 100 ml for drinks). */

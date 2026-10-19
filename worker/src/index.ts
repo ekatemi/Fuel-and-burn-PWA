@@ -69,7 +69,11 @@ Splitting:
 - Several pieces of one food are one item with the grams for all of them: "2 eggs" is one item, count 2.
 - A sandwich, burger, wrap or toast always has its bread as an item, besides the filling.
 - Anything added that has calories is its own item with its own grams: butter, oil, sauce, mayonnaise, sour cream, sugar, honey, dressing. "Toast with butter" is toast plus butter.
-- Keep a dish whole if a French generic food table likely has it (pizza, lasagne, quiche, paella, omelette, hamburger).
+- Keep a dish whole if a French generic food table likely has it (pizza, lasagne, quiche, paella, omelette, hamburger),
+  unless the person says what it is made of: then list those ingredients instead.
+- Parts of a food are their own items, never the whole food: egg yolks and egg whites ("omelette of 2 yolks and
+  3 whites" is egg yolk, 2 yolks about 35 g, and egg white, 3 whites about 100 g, never whole eggs), skinless chicken,
+  skimmed milk.
   Split a regional dish it likely lacks into its main ingredients (borscht: beetroot, cabbage, potato, beef, sour cream; patatas bravas: fried potato, tomato sauce).
 
 For each item return:
@@ -86,7 +90,7 @@ For each item return:
 - name: a short English name, e.g. "Fried eggs".
 - query: 1 to 3 English words as CIQUAL names it, main food first, then form or state.
   Always say "cooked" or "raw" for foods that change weight in cooking (rice, pasta, meat, fish, legumes, potatoes).
-  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "tomato dried" (sun-dried tomatoes), "oat flakes cooked" (porridge, oatmeal), "cream" (also for sour cream, smetana, crème fraîche).
+  Examples: "rice cooked", "dried pasta cooked", "chicken breast cooked", "egg fried", "egg yolk cooked", "egg white cooked", "potato fried", "toasted bread", "rye bread", "beer regular", "coffee milk", "potato crisps", "tomato dried" (sun-dried tomatoes), "oat flakes cooked" (porridge, oatmeal), "cream" (also for sour cream, smetana, crème fraîche).
 - fallback: one word of your query, its main food, used if the whole query finds nothing ("chicken" for "chicken breast cooked").
 - kcal_per_100g: your rough estimate of kcal per 100 g of this food as eaten (cooked rice about 130, coffee with milk about 30).
 - grams: the total amount in grams (ml for drinks). Use the amount in the text; otherwise estimate a typical portion, times the count.

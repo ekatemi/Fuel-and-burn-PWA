@@ -12,7 +12,8 @@ const food = (
   fat: number,
   fiber: number,
   unit: 'g' | 'ml' = 'g',
-): CatalogFood => ({ keywords, name, portion, grams, unit, kcal, protein, carbs, fat, fiber })
+  partOf?: string,
+): CatalogFood => ({ keywords, name, portion, grams, unit, kcal, protein, carbs, fat, fiber, partOf })
 
 // Order matters: more specific entries come before the generic ones they contain.
 // Keywords match whole words, plurals included ("eggs" finds "egg").
@@ -24,6 +25,10 @@ export const FOODS: CatalogFood[] = [
   food(['oatmeal', 'porridge', 'oats'], 'Oatmeal', '1 bowl', 250, 300, 10, 50, 6, 8),
   food(['apple'], 'Apple', '1 medium', 180, 95, 0, 25, 0, 4),
   food(['banana'], 'Banana', '1 medium', 120, 105, 1, 27, 0, 3),
+  // Yolks and whites are counted on their own: 2 yolks and 3 whites is about 70 kcal, not 5 eggs' 390.
+  // "whites", not "white", so white rice or wine isn't taken for egg.
+  food(['egg yolk', 'yolk', 'yema'], 'Egg yolk', '1 yolk', 17, 52, 2.6, 0.2, 4.5, 0, 'g', 'Egg'),
+  food(['egg white', 'whites', 'clara'], 'Egg white', '1 white', 33, 16, 3.6, 0.3, 0, 0, 'g', 'Egg'),
   food(['egg', 'huevo'], 'Egg', '1 egg', 50, 78, 6, 0.5, 5, 0),
   food(['avocado', 'aguacate'], 'Avocado', 'half', 100, 120, 1, 6, 11, 5),
   food(['toast', 'bread'], 'Toast', '1 slice', 30, 90, 3, 15, 1, 2),

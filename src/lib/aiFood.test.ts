@@ -83,6 +83,16 @@ describe('recognizeFood', () => {
     answer([food('egg cooked', 'egg', 155, 110)])
     expect(names(await recognizeFood('2 яйца', db))[0]).toMatch(/^Egg, /)
   })
+
+  it('counts egg yolks and whites, not whole eggs', async () => {
+    const dish = 'Омлет из 2 желтков и 3 белков'
+    answer([food('egg yolk cooked', 'egg', 340, 35, dish), food('egg white cooked', 'egg', 50, 100, dish)])
+    const items = await recognizeFood('омлет из 2 желтков и 3 белков', db)
+    expect(names(items)).toEqual(['Egg yolk, cooked', 'Egg white, cooked'])
+    // About 120 + 45 kcal, against about 330 for five whole eggs.
+    expect(kcalOf(itemsToLog(items)[0])).toBeGreaterThan(140)
+    expect(kcalOf(itemsToLog(items)[0])).toBeLessThan(180)
+  })
 })
 
 describe('nutrition labels', () => {
