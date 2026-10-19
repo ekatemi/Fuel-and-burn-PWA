@@ -34,7 +34,7 @@ function pickFile(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'application/json,.json'
+    input.accept = 'application/json,.json,text/plain,.txt'
     input.hidden = true
     const finish = (file: File | null) => {
       input.remove()
@@ -53,24 +53,27 @@ export function useBackup() {
 
   const exportBackup = async () => {
     const backup: BackupFile = { app: APP_ID, version: 2, exportedAt: new Date().toISOString(), doc }
-    const file = new File([JSON.stringify(backup, null, 2)], `fuel-and-burn-backup-${todayKey()}.json`, {
-      type: 'application/json',
-    })
+    const text = JSON.stringify(backup, null, 2)
+    const name = `fuel-and-burn-backup-${todayKey()}`
 
-    // On phones the share sheet lets the file go to Files, Drive or a message; elsewhere it downloads.
-    if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+    // On phones the share sheet lets the file go to Files, Drive or a message. Chrome on Android shares only some
+    // file types and refuses .json, so the shared copy is plain text (still JSON inside; restore takes both).
+    const shared = new File([text], `${name}.txt`, { type: 'text/plain' })
+    if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [shared] })) {
       try {
-        await navigator.share({ files: [file], title: 'Fuel & Burn backup' })
+        await navigator.share({ files: [shared], title: 'Fuel & Burn backup' })
         saved()
-      } catch {
-        // Share sheet dismissed.
+        showToast('Backup sent. Keep that file somewhere safe.')
+        return
+      } catch (e) {
+        // Closing the share sheet is a choice, not an error; anything else falls back to a download.
+        if ((e as Error)?.name === 'AbortError') return
       }
-      return
     }
-    const url = URL.createObjectURL(file)
+    const url = URL.createObjectURL(new File([text], `${name}.json`, { type: 'application/json' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = file.name
+    link.download = `${name}.json`
     link.click()
     URL.revokeObjectURL(url)
     saved()

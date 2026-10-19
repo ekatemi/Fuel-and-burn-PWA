@@ -1,5 +1,6 @@
-// Food photos are made small on the phone before they go anywhere: ~768 px is enough to tell foods apart.
-const MAX_SIDE = 768
+// Food photos are made smaller on the phone before they go anywhere: ~1280 px tells foods apart and keeps the
+// small print of a nutrition table readable (~768 px wasn't).
+const MAX_SIDE = 1280
 const QUALITY = 0.8
 
 /** A JPEG data URL of the photo, at most MAX_SIDE px on its longer side. */

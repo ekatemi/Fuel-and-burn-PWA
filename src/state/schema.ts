@@ -8,7 +8,7 @@ import { newId } from '../lib/ids'
 import type { AppState } from '../types'
 import { emptySync, type SyncMeta } from './sync'
 
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 export interface StoredDoc {
   schemaVersion: number
@@ -55,6 +55,8 @@ const MIGRATIONS: Record<number, (doc: Raw) => Raw> = {
   4: (doc) => ({ ...doc, schemaVersion: 5, state: { ...doc.state, consent: null } }),
   // v5: no record of backups, so a reminder can come once there is something worth keeping.
   5: (doc) => ({ ...doc, schemaVersion: 6, state: { ...doc.state, lastBackupAt: null } }),
+  // v6: no remembered products; they come with the first label read for a barcode.
+  6: (doc) => ({ ...doc, schemaVersion: 7, state: { ...doc.state, products: {} } }),
 }
 
 /** Brings saved or imported data to the current format, or returns null if it isn't ours. */

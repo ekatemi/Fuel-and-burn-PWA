@@ -13,16 +13,16 @@ export interface SyncMeta {
 
 export const emptySync = (): SyncMeta => ({ updated: {}, deleted: {} })
 
-// Lists of records with an id, and maps keyed by day (one value per day, so the day is the id).
+// Lists of records with an id, and maps keyed by day or barcode (one value per key, so the key is the id).
 const LISTS = ['meals', 'activities', 'favs'] as const
-const DAY_MAPS = ['weighIns', 'bodyFat'] as const
-const RECORDS = new Set<string>([...LISTS, ...DAY_MAPS])
+const MAPS = ['weighIns', 'bodyFat', 'products'] as const
+const RECORDS = new Set<string>([...LISTS, ...MAPS])
 
 /** Every record and setting in the state, by path, with the value whose identity shows a change. */
 function entries(state: AppState): Map<string, unknown> {
   const out = new Map<string, unknown>()
   for (const key of LISTS) for (const record of state[key]) out.set(`${key}/${record.id}`, record)
-  for (const key of DAY_MAPS) for (const [day, value] of Object.entries(state[key])) out.set(`${key}/${day}`, value)
+  for (const key of MAPS) for (const [id, value] of Object.entries(state[key])) out.set(`${key}/${id}`, value)
   for (const [key, value] of Object.entries(state)) if (!RECORDS.has(key)) out.set(`settings/${key}`, value)
   return out
 }

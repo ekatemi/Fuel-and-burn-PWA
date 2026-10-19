@@ -4,19 +4,22 @@ import { loadFoodDb, type FoodDb } from './foodDb'
 import { isKnown, itemsToLog, kcalOf } from './model'
 import type { DraftItem, KnownItem } from '../types'
 
+// Before any import of aiFood, which reads the address once.
+vi.hoisted(() => vi.stubEnv('VITE_AI_URL', 'https://proxy.test/parse-food'))
+
 let db: FoodDb
 let recognizeFood: (text: string, db: FoodDb) => Promise<DraftItem[]>
 
 /** The proxy's answer, without calling it. */
-function answer(items: object[]) {
-  vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ items })))
+function answer(items: object[], label: object | null = null) {
+  vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ items, label })))
 }
 const food = (query: string, fallback: string, kcal_per_100g: number, grams = 100, dish = '') => ({ raw: query, dish, name: query, query, fallback, kcal_per_100g, grams, count: null })
 const names = (items: DraftItem[]) => items.map((i) => (isKnown(i) ? i.food.name : '?'))
 
 beforeAll(async () => {
-  vi.stubEnv('VITE_AI_URL', 'https://proxy.test/parse-food')
-  recognizeFood = (await import('./aiFood')).recognizeFood
+  const ai = await import('./aiFood')
+  recognizeFood = async (text, db) => (await ai.recognizeFood(text, db)).items
   db = await loadFoodDb()
 })
 
@@ -79,5 +82,20 @@ describe('recognizeFood', () => {
   it('prefers the food the query names over one that only shares its words', async () => {
     answer([food('egg cooked', 'egg', 155, 110)])
     expect(names(await recognizeFood('2 яйца', db))[0]).toMatch(/^Egg, /)
+  })
+})
+
+describe('nutrition labels', () => {
+  it('logs a label as one item with its own values, starting from its serving', async () => {
+    const label = { name: 'Yogur griego', unit: 'g', kcal: 120, protein: 6, fat: 10, carbs: 3.5, fiber: null, serving: 125 }
+    answer([], label)
+    const { recognizeFood: recognize } = await import('./aiFood')
+    const { items, product } = await recognize('', db, 'data:image/jpeg;base64,AAAA')
+    expect(product).toEqual(label)
+    const [item] = items as KnownItem[]
+    expect(item.food.name).toBe('Yogur griego')
+    expect(item.amount).toEqual({ value: 125, unit: 'g' })
+    expect(kcalOf(item)).toBe(150)
+    expect(itemsToLog(items)[0].food.fiber).toBe(0)
   })
 })

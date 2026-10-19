@@ -1,4 +1,4 @@
-import { activityAdjustment, restingKcalPerDay } from './activity'
+import { restingKcalPerDay } from './activity'
 import { addDays, weekdayShort, weekStart } from './dates'
 import type {
   ActivityEntry,
@@ -18,6 +18,13 @@ import type {
   Activity,
   Targets,
 } from '../types'
+
+/**
+ * A day with less than this share of its burn logged is most likely incomplete (a forgotten meal), not what was
+ * eaten. Averages and the maintenance estimate leave it out, so it can't show up as a big deficit.
+ */
+export const INCOMPLETE_DAY = 0.5
+const fullDay = (kcal: number, burn: number) => kcal >= burn * INCOMPLETE_DAY
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
 export const r10 = (x: number) => Math.round(x / 10) * 10
@@ -40,33 +47,6 @@ export const mealsOn = (meals: Meal[], date: string) => meals.filter((m) => m.da
 export const activitiesOn = (activities: ActivityEntry[], date: string) => activities.filter((a) => a.date === date)
 export const activityKcal = (activities: ActivityEntry[]) => activities.reduce((a, e) => a + e.burn.kcal, 0)
 
-function median(values: number[]) {
-  if (!values.length) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-}
-
-const TYPICAL_WINDOW_DAYS = 14
-
-/**
- * Logged activity on a typical day: the median over the previous 14 days that have anything
- * in the diary, counting days without logged activity as 0. 0 while there is no history.
- */
-export function typicalActivityKcal(meals: Meal[], activities: ActivityEntry[], date: string) {
-  const from = addDays(date, -TYPICAL_WINDOW_DAYS)
-  const days = new Set(
-    [...meals, ...activities].map((e) => e.date).filter((d) => d >= from && d < date),
-  )
-  return median([...days].map((d) => activityKcal(activitiesOn(activities, d))))
-}
-
-/** Burn for one day: maintenance plus how far that day's logged activity was from a typical day. */
-export function dayBurn(maint: number, meals: Meal[], activities: ActivityEntry[], date: string) {
-  const logged = activityKcal(activitiesOn(activities, date))
-  return maint + activityAdjustment(logged, typicalActivityKcal(meals, activities, date))
-}
-
 // ---- Burn ------------------------------------------------------------------
 
 export const ACTIVITY: Record<Activity, { name: string; desc: string; factor: number }> = {
@@ -74,6 +54,61 @@ export const ACTIVITY: Record<Activity, { name: string; desc: string; factor: nu
   light: { name: 'Lightly active', desc: 'Light exercise 1–3 days a week', factor: 1.375 },
   moderate: { name: 'Moderately active', desc: 'Exercise 3–5 days a week', factor: 1.55 },
   active: { name: 'Very active', desc: 'Hard exercise 6–7 days a week', factor: 1.725 },
+}
+
+// ---- Activity level from the activity diary --------------------------------
+
+/** Days looked back over, how long ago activity logging must have started, and diary days needed in that time. */
+const FIT_WINDOW_DAYS = 28
+const FIT_MIN_SPAN_DAYS = 14
+const FIT_MIN_DIARY_DAYS = 10
+const SITTING_FACTOR = ACTIVITY.sedentary.factor
+
+export interface ActivityFit {
+  /** Average logged activity per diary day, kcal above resting. */
+  avgKcal: number
+  /** Diary days the average is over. */
+  days: number
+  /** The activity level that average looks like. */
+  level: Activity
+}
+
+/**
+ * Which activity level the activity diary looks like: a level adds resting × (factor − 1.2) over "Mostly sitting",
+ * compared with the average logged activity per day (days with food but no activity count as 0). Only a suggestion:
+ * missed entries make the average look lower, so the level never changes by itself. Null until activity has been
+ * logged for about two weeks.
+ */
+export function activityFit(meals: Meal[], activities: ActivityEntry[], today: string, resting: number): ActivityFit | null {
+  const recent = activities.filter((a) => a.date >= addDays(today, -FIT_WINDOW_DAYS) && a.date < today)
+  if (!recent.length || !resting) return null
+  const first = recent.reduce((min, a) => (a.date < min ? a.date : min), recent[0].date)
+  if (first > addDays(today, -FIT_MIN_SPAN_DAYS)) return null
+  const days = new Set([...meals, ...activities].map((e) => e.date).filter((d) => d >= first && d < today)).size
+  if (days < FIT_MIN_DIARY_DAYS) return null
+  const avgKcal = activityKcal(recent) / days
+  const extra = (level: Activity) => Math.abs(resting * (ACTIVITY[level].factor - SITTING_FACTOR) - avgKcal)
+  const level = (Object.keys(ACTIVITY) as Activity[]).reduce((best, l) => (extra(l) < extra(best) ? l : best))
+  return { avgKcal, days, level }
+}
+
+/** Logged activity that makes today a busy day: at least this much, and this many times the usual day. */
+const BUSY_KCAL = 300
+const BUSY_FACTOR = 1.5
+
+/**
+ * Whether today has clearly more logged activity than usual (the average per diary day over the past 28 days).
+ * Only for a gentle "eating a bit more is fine" note: activity never changes the plan, and a quiet day never
+ * means eating less.
+ */
+export function busyDay(meals: Meal[], activities: ActivityEntry[], today: string) {
+  const kcal = activityKcal(activitiesOn(activities, today))
+  if (kcal < BUSY_KCAL) return false
+  const from = addDays(today, -FIT_WINDOW_DAYS)
+  const before = (d: string) => d >= from && d < today
+  const days = new Set([...meals, ...activities].map((e) => e.date).filter(before)).size
+  const usual = days ? activityKcal(activities.filter((a) => before(a.date))) / days : 0
+  return kcal >= usual * BUSY_FACTOR
 }
 
 /** Resting energy use in kcal a day: Katch–McArdle when body fat is logged, otherwise Mifflin–St Jeor. */
@@ -240,7 +275,7 @@ export function weekSummary(meals: Meal[], today: string, burnOn: (date: string)
     const date = addDays(start, i)
     const dayMeals = date <= today ? mealsOn(meals, date) : []
     const logged = dayMeals.length > 0
-    if (logged && date < today) {
+    if (logged && date < today && fullDay(eaten(dayMeals), burnOn(date))) {
       eatenSum += eaten(dayMeals)
       burnSum += burnOn(date)
       loggedDays++
@@ -272,7 +307,7 @@ export interface PeriodData {
 }
 
 /**
- * Averages over the days from `from` to `to` with something logged; days without food are left out,
+ * Averages over the days from `from` to `to` with food logged; empty and incomplete days are left out,
  * since an empty day is a day not logged, not a day without eating.
  */
 export function rangeSummary(meals: Meal[], from: string, to: string, burnOn: (date: string) => number) {
@@ -280,11 +315,14 @@ export function rangeSummary(meals: Meal[], from: string, to: string, burnOn: (d
   for (const m of meals) if (m.date >= from && m.date <= to) eatenByDay.set(m.date, (eatenByDay.get(m.date) ?? 0) + m.kcal)
   let eatenSum = 0
   let burnSum = 0
+  let loggedDays = 0
   for (const [date, kcal] of eatenByDay) {
+    const burn = burnOn(date)
+    if (!fullDay(kcal, burn)) continue
     eatenSum += kcal
-    burnSum += burnOn(date)
+    burnSum += burn
+    loggedDays++
   }
-  const loggedDays = eatenByDay.size
   const avgEaten = loggedDays ? eatenSum / loggedDays : 0
   const avgBurn = loggedDays ? burnSum / loggedDays : 0
   return { loggedDays, avgEaten, avgBurn, balance: avgEaten - avgBurn }
@@ -403,6 +441,16 @@ export function itemsToLog(items: DraftItem[]): KnownItem[] {
 export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'snack', 'lunch', 'dinner']
 export const SLOT_NAMES: Record<MealSlot, string> = { breakfast: 'Breakfast', snack: 'Snack', lunch: 'Lunch', dinner: 'Dinner' }
 
+/** Order and headings of the day's food, grouped by meal: snacks last, whenever they were eaten. */
+const GROUP_ORDER: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack']
+export const GROUP_NAMES: Record<MealSlot, string> = { ...SLOT_NAMES, snack: 'Snacks' }
+
+/** A day's food by meal, each by time; meals with nothing logged are left out. */
+export function mealGroups(meals: Meal[]): { slot: MealSlot; meals: Meal[] }[] {
+  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
+  return GROUP_ORDER.map((slot) => ({ slot, meals: sorted.filter((m) => m.slot === slot) })).filter((g) => g.meals.length)
+}
+
 /** The usual meal at a time of day (HH:MM), used as the default and for entries from before slots. */
 export function slotForTime(time: string): MealSlot {
   if (time < '05:00') return 'snack'
@@ -453,4 +501,63 @@ export function quickList(favs: Favorite[], meals: Meal[]): QuickEntry[] {
     ...favs.map((food): QuickEntry => ({ source: 'fav', food })),
     ...frequent.map(({ food }): QuickEntry => ({ source: 'freq', food })),
   ]
+}
+
+// ---- Swap ideas ------------------------------------------------------------
+
+/** Days looked back over, how often a food must show up in them, and how big a serving must be to matter. */
+const SWAP_WINDOW_DAYS = 14
+const SWAP_MIN_COUNT = 3
+const SWAP_MIN_KCAL = 100
+/** kcal per gram from which a food counts as energy-dense: chips, nuts, chocolate, cheese, biscuits, butter. */
+const DENSE_KCAL_PER_G = 4
+
+export interface SwapIdea {
+  /** As logged most recently. */
+  name: string
+  count: number
+  /** Average kcal each time. */
+  avgKcal: number
+  /** kcal freed by having half the portion, at the same frequency. */
+  weekly: number
+  monthly: number
+  /** Logged mostly as a snack, so lighter snacks are a fitting idea. */
+  snack: boolean
+}
+
+/** Weight of a logged portion like "120 g" or "330 ml"; null when the portion has no weight ("1 bowl"). */
+export function portionGrams(portion: string) {
+  const m = /^(\d+(?:[.,]\d+)?)\s*(g|ml)$/.exec(portion.trim())
+  return m ? Number(m[1].replace(',', '.')) : null
+}
+
+/**
+ * The energy-dense food that adds the most to the past two weeks, if one shows up often enough: the base for
+ * a "half the portion" idea. Only an idea; when to show it is up to the caller.
+ */
+export function swapIdea(meals: Meal[], today: string): SwapIdea | null {
+  const from = addDays(today, -SWAP_WINDOW_DAYS)
+  const foods = new Map<string, Meal[]>()
+  for (const m of meals) {
+    if (m.date < from || m.date >= today || m.kcal < SWAP_MIN_KCAL) continue
+    const grams = portionGrams(m.portion)
+    if (!grams || m.kcal / grams < DENSE_KCAL_PER_G) continue
+    const key = m.name.toLowerCase().trim()
+    foods.set(key, [...(foods.get(key) ?? []), m])
+  }
+  let best: Meal[] | null = null
+  for (const list of foods.values()) {
+    if (list.length >= SWAP_MIN_COUNT && (!best || eaten(list) > eaten(best))) best = list
+  }
+  if (!best) return null
+  const latest = best.reduce((a, b) => (b.date + b.time > a.date + a.time ? b : a))
+  const perWeek = eaten(best) / 2 / (SWAP_WINDOW_DAYS / 7)
+  return {
+    name: latest.name,
+    count: best.length,
+    avgKcal: eaten(best) / best.length,
+    weekly: r10(perWeek),
+    monthly: Math.round((perWeek * 30) / 7 / 50) * 50,
+    snack: best.filter((m) => m.slot === 'snack').length * 2 >= best.length,
+  }
 }

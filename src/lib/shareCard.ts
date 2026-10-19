@@ -1,7 +1,7 @@
 // Draws a day's food as an image to share (WhatsApp and the like). Always light colours,
 // since the picture is seen outside the app.
-import { fmt, MACROS, macroSum } from './model'
-import type { Meal, Targets } from '../types'
+import { fmt, GROUP_NAMES, MACROS, macroSum, mealGroups } from './model'
+import type { Meal, MealSlot, Targets } from '../types'
 
 export interface ShareCardInput {
   meals: Meal[]
@@ -18,15 +18,74 @@ export interface ShareCardInput {
   weekOnTarget: boolean
 }
 
+// Word stems in English, Spanish and Russian (dishes keep the person's own words); the first match wins,
+// so dishes come before their ingredients.
 const EMOJI: [string, string][] = [
-  ['avocado', '🥑'], ['salad', '🥗'], ['shake', '🥤'], ['banana', '🍌'], ['coffee', '☕'], ['latte', '☕'],
-  ['yogurt', '🥣'], ['croissant', '🥐'], ['oat', '🥣'], ['porridge', '🥣'], ['apple', '🍎'], ['egg', '🍳'],
-  ['toast', '🍞'], ['chicken', '🍗'], ['rice', '🍚'], ['pasta', '🍝'], ['salmon', '🐟'], ['sandwich', '🥪'],
-  ['bravas', '🥔'], ['fries', '🍟'], ['chips', '🥔'], ['beer', '🍺'], ['wine', '🍷'], ['pizza', '🍕'],
-  ['tortilla', '🥘'], ['jam', '🥓'], ['almond', '🥜'], ['nut', '🥜'], ['chocolate', '🍫'], ['soup', '🍲'],
-  ['steak', '🥩'], ['tuna', '🐟'], ['cottage', '🥛'],
+  ['dumpling', '🥟'], ['пельмен', '🥟'], ['вареник', '🥟'], ['хинкал', '🥟'], ['gyoza', '🥟'],
+  ['sandwich', '🥪'], ['бутерброд', '🥪'], ['сэндвич', '🥪'], ['bocadillo', '🥪'], ['burger', '🍔'], ['бургер', '🍔'],
+  ['pizza', '🍕'], ['пицц', '🍕'], ['sushi', '🍣'], ['суши', '🍣'], ['ролл', '🍣'], ['soup', '🍲'], ['суп', '🍲'],
+  ['борщ', '🍲'], ['sopa', '🍲'], ['salad', '🥗'], ['салат', '🥗'], ['ensalada', '🥗'], ['paella', '🥘'],
+  ['tortilla', '🥘'], ['омлет', '🍳'], ['omelet', '🍳'], ['pasta', '🍝'], ['паст', '🍝'], ['spaghetti', '🍝'],
+  ['макарон', '🍝'], ['noodle', '🍜'], ['лапш', '🍜'], ['porridge', '🥣'], ['каш', '🥣'], ['oat', '🥣'],
+  ['овсян', '🥣'], ['granola', '🥣'], ['yogurt', '🥣'], ['йогурт', '🥣'], ['yogur', '🥣'], ['кефир', '🥛'],
+  ['cottage', '🥛'], ['творог', '🥛'], ['milk', '🥛'], ['молок', '🥛'], ['leche', '🥛'], ['shake', '🥤'],
+  ['коктейл', '🥤'], ['coffee', '☕'], ['latte', '☕'], ['кофе', '☕'], ['café', '☕'], ['tea', '🍵'], ['чай', '🍵'],
+  ['beer', '🍺'], ['пиво', '🍺'], ['cerveza', '🍺'], ['wine', '🍷'], ['вино', '🍷'], ['vino', '🍷'],
+  ['croissant', '🥐'], ['круассан', '🥐'], ['pancake', '🥞'], ['блин', '🥞'], ['сырник', '🥞'], ['toast', '🍞'],
+  ['bread', '🍞'], ['хлеб', '🍞'], ['pan ', '🍞'], ['cheese', '🧀'], ['сыр', '🧀'], ['queso', '🧀'],
+  ['egg', '🍳'], ['яйц', '🍳'], ['яичн', '🍳'], ['huevo', '🍳'], ['chicken', '🍗'], ['куриц', '🍗'],
+  ['курин', '🍗'], ['pollo', '🍗'], ['ham', '🍖'], ['ветчин', '🍖'], ['jamón', '🍖'], ['jamon', '🍖'],
+  ['bacon', '🥓'], ['бекон', '🥓'], ['sausage', '🌭'], ['колбас', '🌭'], ['сосиск', '🌭'], ['steak', '🥩'],
+  ['beef', '🥩'], ['говяд', '🥩'], ['мяс', '🥩'], ['pork', '🥩'], ['свинин', '🥩'], ['salmon', '🐟'],
+  ['лосос', '🐟'], ['tuna', '🐟'], ['тунец', '🐟'], ['тунц', '🐟'], ['atún', '🐟'], ['fish', '🐟'], ['рыб', '🐟'],
+  ['shrimp', '🦐'], ['prawn', '🦐'], ['кревет', '🦐'], ['rice', '🍚'], ['рис', '🍚'], ['arroz', '🍚'],
+  ['гречк', '🍚'], ['bravas', '🥔'], ['fries', '🍟'], ['potato', '🥔'], ['картоф', '🥔'], ['картош', '🥔'],
+  ['patata', '🥔'], ['chips', '🥔'], ['tomato', '🍅'], ['помидор', '🍅'], ['томат', '🍅'], ['tomate', '🍅'],
+  ['cucumber', '🥒'], ['огур', '🥒'], ['spinach', '🥬'], ['шпинат', '🥬'], ['espinaca', '🥬'], ['lettuce', '🥬'],
+  ['салатн', '🥬'], ['капуст', '🥬'], ['broccoli', '🥦'], ['брокколи', '🥦'], ['carrot', '🥕'], ['морков', '🥕'],
+  ['pepper', '🫑'], ['перец', '🫑'], ['avocado', '🥑'], ['авокадо', '🥑'], ['aguacate', '🥑'], ['mushroom', '🍄'],
+  ['гриб', '🍄'], ['banana', '🍌'], ['банан', '🍌'], ['plátano', '🍌'], ['apple', '🍎'], ['яблок', '🍎'],
+  ['manzana', '🍎'], ['orange', '🍊'], ['апельсин', '🍊'], ['мандарин', '🍊'], ['berr', '🫐'], ['ягод', '🫐'],
+  ['черник', '🫐'], ['клубник', '🍓'], ['strawberr', '🍓'], ['grape', '🍇'], ['виноград', '🍇'], ['pear', '🍐'],
+  ['груш', '🍐'], ['peach', '🍑'], ['персик', '🍑'], ['almond', '🥜'], ['миндал', '🥜'], ['nut', '🥜'],
+  ['орех', '🥜'], ['chocolate', '🍫'], ['шоколад', '🍫'], ['cookie', '🍪'], ['печень', '🍪'], ['cake', '🍰'],
+  ['торт', '🍰'], ['пирог', '🥧'], ['ice cream', '🍨'], ['морожен', '🍨'], ['honey', '🍯'], ['мёд', '🍯'],
+  ['мед', '🍯'], ['soy sauce', '🥢'], ['соев', '🥢'], ['sauce', '🥫'], ['соус', '🥫'], ['oil', '🫒'],
+  ['масло', '🧈'], ['butter', '🧈'], ['olive', '🫒'], ['олив', '🫒'], ['hummus', '🧆'], ['хумус', '🧆'],
+  ['bean', '🫘'], ['фасол', '🫘'], ['lentil', '🫘'], ['чечевиц', '🫘'], ['tofu', '🫘'], ['тофу', '🫘'],
+  ['water', '💧'], ['вода', '💧'], ['juice', '🧃'], ['сок', '🧃'], ['zumo', '🧃'],
 ]
-const emojiFor = (name: string) => EMOJI.find(([k]) => name.toLowerCase().includes(k))?.[1] ?? '🍽️'
+const SLOT_EMOJI: Record<MealSlot, string> = { breakfast: '🍳', lunch: '🍲', dinner: '🍽️', snack: '🍎' }
+/** Matches from the start of a word, so "tea" doesn't find "steak" nor "oil" "boiled". */
+function emojiFor(name: string) {
+  const words = ' ' + name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ') + ' '
+  return EMOJI.find(([k]) => words.includes(' ' + k))?.[1] ?? '🍽️'
+}
+
+/** A meal's heading gets the emoji of its biggest item, like a chat message would. */
+function groupEmoji(slot: MealSlot, meals: Meal[]) {
+  const biggest = meals.reduce((a, b) => (b.kcal > a.kcal ? b : a))
+  const emoji = emojiFor(biggest.name)
+  return emoji === '🍽️' ? SLOT_EMOJI[slot] : emoji
+}
+
+const r5 = (n: number) => Math.round(n / 5) * 5
+/** Calories as a rough range (±15%), since a logged portion is never exact. */
+function kcalRange(kcal: number) {
+  const lo = Math.max(0, r5(kcal * 0.85))
+  const hi = Math.max(5, r5(kcal * 1.15))
+  return lo === hi || lo === 0 ? `≈${fmt(hi)} kcal` : `≈${fmt(lo)}–${fmt(hi)} kcal`
+}
+
+const itemText = (m: Meal, kcal: boolean) =>
+  `${emojiFor(m.name)} ${m.name}${m.portion ? `, ${m.portion}` : ''}${kcal ? ` — ${kcalRange(m.kcal)}` : ''}`
+
+/** The day as plain text, grouped by meal: what is sent when an image can't be shared. */
+export function shareText(meals: Meal[], kcal: boolean) {
+  return mealGroups(meals)
+    .map((g) => `${groupEmoji(g.slot, g.meals)} ${GROUP_NAMES[g.slot]}\n\n${g.meals.map((m) => '• ' + itemText(m, kcal)).join('\n')}`)
+    .join('\n\n')
+}
 
 const C = {
   bg: '#EEF1F5', card: '#FFFFFF', ink: '#14161A', muted: '#555B66', burn: '#2A47C9',
@@ -36,13 +95,42 @@ const DISPLAY = "'Unbounded Variable', sans-serif"
 const BODY = "'Onest Variable', sans-serif"
 const W = 1080
 const PAD = 64
-const MAX_TILES = 6
-const TILE_H = 180
-const TILE_GAP = 22
+const LIST_TOP = 290
+const CARD_PAD = 44
+const HEADING_H = 66
+const LINE_H = 46
+const ITEM_GAP = 12
+const GROUP_GAP = 30
+const BULLET_W = 40
+const HEADING_FONT = `600 38px ${BODY}`
+const ITEM_FONT = `400 32px ${BODY}`
 
 function roundRect(x: CanvasRenderingContext2D, left: number, top: number, w: number, h: number, r: number) {
   x.beginPath()
   x.roundRect(left, top, w, h, r)
+}
+
+/** Splits text into lines no wider than `max`, breaking between words (or inside a word too long for a line). */
+function wrap(x: CanvasRenderingContext2D, text: string, max: number) {
+  const lines: string[] = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    const next = line ? line + ' ' + word : word
+    if (x.measureText(next).width <= max) {
+      line = next
+      continue
+    }
+    if (line) lines.push(line)
+    line = word
+    while (x.measureText(line).width > max && line.length > 1) {
+      let cut = line.length - 1
+      while (cut > 1 && x.measureText(line.slice(0, cut)).width > max) cut--
+      lines.push(line.slice(0, cut))
+      line = line.slice(cut)
+    }
+  }
+  if (line) lines.push(line)
+  return lines
 }
 
 function fit(x: CanvasRenderingContext2D, text: string, max: number) {
@@ -59,15 +147,23 @@ export async function drawShareCard(input: ShareCardInput): Promise<HTMLCanvasEl
   }
   const { meals, targets, numbers, note } = input
   const kcal = numbers && input.showKcal
-  const sorted = [...meals].sort((a, b) => a.time.localeCompare(b.time))
-  const shown = sorted.slice(0, MAX_TILES)
-  const rows = Math.ceil(shown.length / 2)
-  const more = sorted.length > MAX_TILES
-  const tilesEnd = 290 + rows * (TILE_H + TILE_GAP) + (more ? 60 : 40)
-  const height = Math.max(1350, tilesEnd + 40 + 4 * 92 + 20 + (input.weekStatus ? 64 : 0) + (note ? 110 : 0) + 110)
 
+  // Lay out the food first, so the picture is as tall as the whole list needs.
   const canvas = document.createElement('canvas')
   canvas.width = W
+  const measure = canvas.getContext('2d')!
+  measure.font = ITEM_FONT
+  const textW = W - 2 * PAD - 2 * CARD_PAD - BULLET_W
+  const groups = mealGroups(meals).map((g) => ({
+    heading: `${groupEmoji(g.slot, g.meals)} ${GROUP_NAMES[g.slot]}`,
+    items: g.meals.map((m) => wrap(measure, itemText(m, kcal), textW)),
+  }))
+  const groupH = (g: (typeof groups)[number]) =>
+    HEADING_H + g.items.reduce((a, lines) => a + lines.length * LINE_H + ITEM_GAP, 0) - ITEM_GAP
+  const cardH = 2 * CARD_PAD + groups.reduce((a, g) => a + groupH(g), 0) + (groups.length - 1) * GROUP_GAP
+  const listEnd = LIST_TOP + cardH + 40
+  const height = Math.max(1350, listEnd + 40 + 4 * 92 + 20 + (input.weekStatus ? 64 : 0) + (note ? 110 : 0) + 110)
+
   canvas.height = height
   const x = canvas.getContext('2d')!
   x.fillStyle = C.bg
@@ -91,40 +187,30 @@ export async function drawShareCard(input: ShareCardInput): Promise<HTMLCanvasEl
   const total = meals.reduce((a, m) => a + m.kcal, 0)
   x.fillText(`${meals.length} ${meals.length === 1 ? 'item' : 'items'}` + (kcal ? ` · ${fmt(total)} kcal` : ''), PAD, 250)
 
-  // Food tiles, two per row
-  const tileW = (W - 2 * PAD - 24) / 2
-  shown.forEach((meal, i) => {
-    const left = PAD + (i % 2) * (tileW + 24)
-    const top = 290 + Math.floor(i / 2) * (TILE_H + TILE_GAP)
-    x.fillStyle = C.card
-    roundRect(x, left, top, tileW, TILE_H, 32)
-    x.fill()
-    x.font = '88px sans-serif'
-    x.fillText(emojiFor(meal.name), left + 28, top + 118)
+  // Food by meal, every item
+  x.fillStyle = C.card
+  roundRect(x, PAD, LIST_TOP, W - 2 * PAD, cardH, 32)
+  x.fill()
+  let top = LIST_TOP + CARD_PAD
+  const left = PAD + CARD_PAD
+  for (const g of groups) {
     x.fillStyle = C.ink
-    x.font = `600 32px ${BODY}`
-    const textLeft = left + 150
-    const maxW = tileW - 170
-    let line1 = ''
-    let line2 = ''
-    for (const word of meal.name.split(' ')) {
-      if (!line2 && x.measureText((line1 + ' ' + word).trim()).width <= maxW) line1 = (line1 + ' ' + word).trim()
-      else line2 = (line2 + ' ' + word).trim()
+    x.font = HEADING_FONT
+    x.fillText(g.heading, left, top + 40)
+    top += HEADING_H
+    x.font = ITEM_FONT
+    for (const lines of g.items) {
+      x.fillStyle = C.muted
+      x.fillText('•', left + 6, top + 34)
+      x.fillStyle = C.ink
+      lines.forEach((line, i) => x.fillText(line, left + BULLET_W, top + 34 + i * LINE_H))
+      top += lines.length * LINE_H + ITEM_GAP
     }
-    x.fillText(line1, textLeft, top + (line2 ? 66 : 84))
-    if (line2) x.fillText(fit(x, line2, maxW), textLeft, top + 106)
-    x.fillStyle = C.muted
-    x.font = `400 26px ${BODY}`
-    x.fillText(meal.time + (kcal ? ` · ${fmt(meal.kcal)} kcal` : ''), textLeft, top + (line2 ? 148 : 128))
-  })
-  if (more) {
-    x.fillStyle = C.muted
-    x.font = `500 28px ${BODY}`
-    x.fillText(`+${sorted.length - MAX_TILES} more`, PAD, 290 + rows * (TILE_H + TILE_GAP) + 10)
+    top += GROUP_GAP - ITEM_GAP
   }
 
   // Macros
-  let y = tilesEnd + 40
+  let y = listEnd + 40
   MACROS.forEach(({ key, icon, label }, i) => {
     const value = Math.round(macroSum(meals, key))
     const target = targets[key]

@@ -12,15 +12,15 @@ const MIN_COMPOSITION_SPAN_DAYS = 14
 const COMPARISON: Record<ExpectedVsActual['verdict'], { title: string; text: string }> = {
   'as-expected': {
     title: 'About as expected',
-    text: 'Your weight is moving about as your food diary predicts, so your burn estimate fits you.',
+    text: 'Your weight is moving about as your food diary and the standard formula predict: the formula fits you well.',
   },
   lower: {
     title: 'A bit lower than expected',
-    text: 'Your weight came out a bit lower than your diary predicts. Water often explains it. If it keeps happening, your maintenance estimate goes up, and your plan with it.',
+    text: 'Your weight came out a bit lower than the standard formula predicts for your diary: you probably burn a bit more. Your maintenance estimate learns this from these weeks, and your plan follows it.',
   },
   higher: {
     title: 'A bit higher than expected',
-    text: 'Your weight came out a bit higher than your diary predicts. Water, salt and the odd unlogged snack all play a part, and it isn’t a reason to eat less. Your maintenance estimate adjusts to match over the next weeks.',
+    text: 'Your weight came out a bit higher than the standard formula predicts for your diary. Water, salt and the odd unlogged snack all play a part, and some people burn a little less than the formula says. It isn’t a reason to eat less: your maintenance estimate learns from these weeks.',
   },
 }
 
@@ -34,7 +34,7 @@ function LegendDot({ color, label, hollow }: { color: string; label: string; hol
 }
 
 export function TrendsView() {
-  const { state, today, weighIns, trendWeight, bodyFatPct, maintEstimate, burnOn } = useApp()
+  const { state, today, weighIns, trendWeight, bodyFatPct, maintEstimate } = useApp()
   const { numbers } = state
 
   const from = addDays(today, -(TREND_DAYS - 1))
@@ -56,7 +56,11 @@ export function TrendsView() {
       ? { fat: last.fatKg - first.fatKg, lean: last.leanKg - first.leanKg }
       : null
 
-  const comparison = maintEstimate ? expectedVsActual(state.meals, weighIns, today, maintEstimate.formula, burnOn) : null
+  // Against the formula: the learned estimate is fitted to these same weeks, so it would always agree.
+  const formula = maintEstimate?.formula
+  const comparison = formula
+    ? expectedVsActual(state.meals, weighIns, today, formula, () => formula)
+    : null
 
   const stats = [
     { label: 'Weight change', value: change == null ? '—' : formatChange(change), color: 'var(--burn-ink)' },
@@ -126,7 +130,7 @@ export function TrendsView() {
               <div className="grid2">
                 <div className="stat">
                   <span className="muted" style={{ fontSize: 12 }}>
-                    Expected from your diary
+                    Expected by the formula
                   </span>
                   <span className="num" style={{ fontSize: 19 }}>
                     {formatChange(comparison.expected)}

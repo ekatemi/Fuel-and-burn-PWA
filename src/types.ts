@@ -18,6 +18,20 @@ export interface CatalogFood extends Food {
   unit: 'g' | 'ml'
 }
 
+/** A packaged food as its label gives it, per 100 g (or 100 ml for drinks). */
+export interface Product {
+  name: string
+  unit: 'g' | 'ml'
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  /** null when the label doesn't give it. */
+  fiber: number | null
+  /** One serving as printed, in g or ml, if given. */
+  serving: number | null
+}
+
 export interface Favorite extends Food {
   id: string
 }
@@ -119,4 +133,6 @@ export interface AppState {
   dismissed: Record<string, boolean>
   /** When a backup was last exported, as an ISO timestamp; null if never. */
   lastBackupAt: string | null
+  /** Packaged foods read from their label, by barcode, for products Open Food Facts doesn't have. */
+  products: Record<string, Product>
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Sheet } from '../components/Sheet'
 import { longLabel } from '../lib/dates'
 import { mealsOn, status, weekSummary } from '../lib/model'
-import { drawShareCard, shareCard, type ShareCardInput } from '../lib/shareCard'
+import { drawShareCard, shareCard, shareText, type ShareCardInput } from '../lib/shareCard'
 import { useApp } from '../state/AppContext'
 
 const NOTE_DELAY_MS = 350
@@ -50,7 +50,7 @@ export function ShareSheet() {
   const share = async () => {
     setBusy(true)
     try {
-      const result = await shareCard(await drawShareCard(input), 'My food today: ' + meals.map((m) => m.name).join(', '))
+      const result = await shareCard(await drawShareCard(input), shareText(meals, state.numbers && showKcal))
       if (result === 'downloaded') showToast('Image saved to your downloads')
     } catch {
       showToast('Couldn’t create the image. Try again.')
@@ -68,7 +68,7 @@ export function ShareSheet() {
           <img
             className="share-preview"
             src={preview || undefined}
-            alt="Preview of the card you’ll share: the day’s food, protein, fat, carbs, fiber and this week’s status"
+            alt="Preview of the card you’ll share: the day’s food by meal, protein, fat, carbs, fiber and this week’s status"
           />
           {state.numbers && (
             <div className="row center" style={{ minHeight: 52 }}>

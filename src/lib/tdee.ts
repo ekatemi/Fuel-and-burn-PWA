@@ -5,7 +5,7 @@
 // flagged and left out, so one strange week doesn't move the baseline. The rest are blended with the
 // formula estimate (the prior); the more good weeks, the more weight they get.
 import { addDays } from './dates'
-import { eaten, mealsOn } from './model'
+import { eaten, INCOMPLETE_DAY, mealsOn } from './model'
 import { trendOn, type WeighIn } from './weight'
 import type { Meal } from '../types'
 
@@ -15,11 +15,6 @@ export const KCAL_PER_KG = 7700
 export const WEEKS = 4
 /** A week needs food logged on this many days to say anything about intake. */
 const MIN_LOGGED_DAYS = 4
-/**
- * A day with less than this share of the formula logged is most likely incomplete (a forgotten meal),
- * not what was eaten. Counting it would pull maintenance down and the plan with it, so it is skipped.
- */
-const INCOMPLETE_DAY = 0.5
 /** Most weight the observed burn ever gets: the formula always keeps a say. */
 const MAX_ALPHA = 0.8
 /** A week this far from the formula (as a fraction of it) is not a believable burn. */
@@ -138,7 +133,7 @@ export interface ExpectedVsActual {
   weeks: number
   /** First day of the oldest week compared, as YYYY-MM-DD. */
   from: string
-  /** Change in kg the food diary predicts against the burn estimate. */
+  /** Change in kg the food diary predicts against the burn from the formula. */
   expected: number
   /** Change in trend weight over the same weeks, in kg. */
   actual: number
@@ -147,8 +142,9 @@ export interface ExpectedVsActual {
 }
 
 /**
- * What the food diary predicts for weight, against what the trend did, over the same weeks as the
- * maintenance estimate. Unusual weeks count here too: it compares, it doesn't learn.
+ * What the food diary predicts for weight against the formula burn (`burnOn` built from the formula, not the
+ * learned estimate, which is fitted to these same weeks and would always agree), next to what the trend did,
+ * over the same weeks as the maintenance estimate. Unusual weeks count here too: it compares, it doesn't learn.
  */
 export function expectedVsActual(
   meals: Meal[],
